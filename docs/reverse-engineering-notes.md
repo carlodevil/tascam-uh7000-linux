@@ -48,8 +48,9 @@ Configuration `2` advertises:
 - 6-channel input endpoint
 - Asynchronous high-speed isochronous endpoints
 
-The first implementation therefore tries configuration switching before any
-custom kernel driver work.
+The first implementation uses configuration switching plus `snd_usb_audio`
+`new_id` registration. A direct class-driver bind failed on this kernel, while
+registering `0644:8048` through `new_id` exposed the ALSA streams.
 
 ## Implementation Boundary
 

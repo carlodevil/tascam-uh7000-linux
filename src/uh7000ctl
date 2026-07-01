@@ -34,10 +34,18 @@ print_device_status() {
         printf 'Mode:   vendor-specific configuration selected; run `sudo uh7000ctl configure`\n'
     fi
 
-    driver_links="$(find "$path" -maxdepth 2 -type l -name driver -print 2>/dev/null || true)"
+    driver_links=""
+    for iface in "$path":*; do
+        [ -e "$iface" ] || continue
+        if [ -L "$iface/driver" ]; then
+            driver_links="${driver_links}${iface}/driver
+"
+        fi
+    done
     if [ -n "$driver_links" ]; then
         printf 'Drivers:\n'
         printf '%s\n' "$driver_links" | while IFS= read -r link; do
+            [ -n "$link" ] || continue
             printf '  %s -> %s\n' "$link" "$(readlink -f "$link")"
         done
     else
@@ -49,7 +57,7 @@ print_alsa_status() {
     printf '\nALSA cards:\n'
     if [ -r /proc/asound/cards ]; then
         if grep -qiE 'UH-7000|TASCAM|TEAC' /proc/asound/cards; then
-            grep -iE 'UH-7000|TASCAM|TEAC|^[[:space:]]+[0-9]+ \\[' /proc/asound/cards || true
+            grep -iE 'UH-7000|TASCAM|TEAC|^[[:space:]]+[0-9]+ \[' /proc/asound/cards || true
         else
             cat /proc/asound/cards
             printf 'No ALSA card entry matched UH-7000/TASCAM/TEAC.\n'

@@ -1,3 +1,10 @@
+tascam-uh7000-linux (0.1.1-1) unstable; urgency=medium
+
+  * Register UH-7000 with snd-usb-audio after switching USB configuration.
+  * Improve uh7000ctl driver and ALSA card reporting.
+
+ -- carlodevil <64757000+carlodevil@users.noreply.github.com>  Wed, 01 Jul 2026 21:37:00 +0200
+
 tascam-uh7000-linux (0.1.0-1) unstable; urgency=medium
 
   * Initial Debian package for UH-7000 USB Audio 2.0 configuration support.

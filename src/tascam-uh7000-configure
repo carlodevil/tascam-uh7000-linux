@@ -97,4 +97,14 @@ if command -v modprobe >/dev/null 2>&1; then
     modprobe snd_usb_audio 2>/dev/null || true
 fi
 
+if [ -w /sys/bus/usb/drivers/snd-usb-audio/new_id ]; then
+    if printf '%s %s' "$VID" "$PID" > /sys/bus/usb/drivers/snd-usb-audio/new_id 2>/dev/null; then
+        log "registered UH-7000 with snd-usb-audio"
+    else
+        log "snd-usb-audio new_id registration failed or was already present"
+    fi
+else
+    log "snd-usb-audio new_id interface is unavailable"
+fi
+
 exit 0
