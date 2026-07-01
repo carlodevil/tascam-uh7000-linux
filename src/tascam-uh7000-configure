@@ -1,0 +1,100 @@
+#!/bin/sh
+set -eu
+
+VID="0644"
+PID="8048"
+TARGET_CONFIG="2"
+LOG_TAG="tascam-uh7000"
+
+log() {
+    if command -v logger >/dev/null 2>&1; then
+        logger -t "$LOG_TAG" -- "$*"
+    fi
+    printf '%s\n' "$*" >&2
+}
+
+find_device_by_kernel() {
+    kernel="$1"
+    path="/sys/bus/usb/devices/$kernel"
+    if [ -f "$path/idVendor" ] && [ -f "$path/idProduct" ]; then
+        if [ "$(cat "$path/idVendor")" = "$VID" ] && [ "$(cat "$path/idProduct")" = "$PID" ]; then
+            printf '%s\n' "$path"
+            return 0
+        fi
+    fi
+    return 1
+}
+
+find_first_device() {
+    for path in /sys/bus/usb/devices/*; do
+        [ -f "$path/idVendor" ] || continue
+        [ -f "$path/idProduct" ] || continue
+        [ "$(cat "$path/idVendor")" = "$VID" ] || continue
+        [ "$(cat "$path/idProduct")" = "$PID" ] || continue
+        printf '%s\n' "$path"
+        return 0
+    done
+    return 1
+}
+
+usage() {
+    cat <<EOF
+Usage: tascam-uh7000-configure [USB_KERNEL_NAME]
+
+Switches a TASCAM UH-7000 (USB ID ${VID}:${PID}) to USB configuration ${TARGET_CONFIG}
+so Linux can bind its USB Audio 2.0 interfaces with snd_usb_audio.
+EOF
+}
+
+case "${1:-}" in
+    -h|--help)
+        usage
+        exit 0
+        ;;
+esac
+
+if [ "$(id -u)" -ne 0 ]; then
+    log "must run as root"
+    exit 1
+fi
+
+devpath=""
+if [ "${1:-}" ]; then
+    devpath="$(find_device_by_kernel "$1" || true)"
+fi
+
+if [ -z "$devpath" ]; then
+    devpath="$(find_first_device || true)"
+fi
+
+if [ -z "$devpath" ]; then
+    log "UH-7000 ${VID}:${PID} not found"
+    exit 2
+fi
+
+if [ ! -w "$devpath/bConfigurationValue" ]; then
+    log "cannot write $devpath/bConfigurationValue"
+    exit 3
+fi
+
+num_configs="$(cat "$devpath/bNumConfigurations" 2>/dev/null || printf '0')"
+current_config="$(cat "$devpath/bConfigurationValue" 2>/dev/null || printf '?')"
+
+if [ "$num_configs" -lt "$TARGET_CONFIG" ] 2>/dev/null; then
+    log "device exposes only $num_configs configuration(s), cannot select $TARGET_CONFIG"
+    exit 4
+fi
+
+if [ "$current_config" = "$TARGET_CONFIG" ]; then
+    log "UH-7000 already in USB configuration $TARGET_CONFIG"
+else
+    log "switching UH-7000 at $(basename "$devpath") from USB configuration $current_config to $TARGET_CONFIG"
+    printf '%s' "$TARGET_CONFIG" > "$devpath/bConfigurationValue"
+    sleep 1
+fi
+
+if command -v modprobe >/dev/null 2>&1; then
+    modprobe snd_usb_audio 2>/dev/null || true
+fi
+
+exit 0

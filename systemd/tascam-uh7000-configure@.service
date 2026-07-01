@@ -1,0 +1,9 @@
+[Unit]
+Description=Configure TASCAM UH-7000 USB Audio mode for %I
+Documentation=man:uh7000ctl(1)
+DefaultDependencies=no
+After=systemd-udevd.service
+
+[Service]
+Type=oneshot
+ExecStart=/usr/libexec/tascam-uh7000/tascam-uh7000-configure %I

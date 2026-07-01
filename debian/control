@@ -1,0 +1,15 @@
+Source: tascam-uh7000-linux
+Section: sound
+Priority: optional
+Maintainer: carlodevil <64757000+carlodevil@users.noreply.github.com>
+Standards-Version: 4.7.0
+Rules-Requires-Root: no
+
+Package: tascam-uh7000-linux
+Architecture: all
+Depends: udev, kmod
+Recommends: alsa-utils
+Description: Linux support helper for the TASCAM UH-7000 USB audio interface
+ Selects the UH-7000 USB Audio 2.0 configuration on hotplug so the standard
+ Linux snd_usb_audio driver can expose playback and capture devices. Includes
+ a small diagnostic command, uh7000ctl.

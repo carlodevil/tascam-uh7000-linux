@@ -1,0 +1,5 @@
+tascam-uh7000-linux (0.1.0-1) unstable; urgency=medium
+
+  * Initial Debian package for UH-7000 USB Audio 2.0 configuration support.
+
+ -- carlodevil <64757000+carlodevil@users.noreply.github.com>  Wed, 01 Jul 2026 21:30:00 +0200

@@ -1,0 +1,31 @@
+name: Build Debian package
+
+on:
+  push:
+    branches: [ main ]
+    tags: [ 'v*' ]
+  pull_request:
+  workflow_dispatch:
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    container: debian:trixie
+    steps:
+      - name: Install build dependencies
+        run: |
+          apt-get update
+          apt-get install -y --no-install-recommends ca-certificates dpkg-dev shellcheck
+      - name: Check out repository
+        uses: actions/checkout@v4
+      - name: Shellcheck scripts
+        run: shellcheck src/uh7000ctl src/tascam-uh7000-configure scripts/build-deb.sh packaging/postinst packaging/prerm packaging/postrm
+      - name: Build package
+        run: scripts/build-deb.sh
+      - name: Inspect package
+        run: dpkg-deb --info dist/*.deb && dpkg-deb --contents dist/*.deb
+      - name: Upload artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: tascam-uh7000-linux-deb
+          path: dist/*.deb

@@ -1,0 +1,127 @@
+#!/bin/sh
+set -eu
+
+VID="0644"
+PID="8048"
+HELPER="/usr/libexec/tascam-uh7000/tascam-uh7000-configure"
+
+find_devices() {
+    for path in /sys/bus/usb/devices/*; do
+        [ -f "$path/idVendor" ] || continue
+        [ -f "$path/idProduct" ] || continue
+        [ "$(cat "$path/idVendor")" = "$VID" ] || continue
+        [ "$(cat "$path/idProduct")" = "$PID" ] || continue
+        printf '%s\n' "$path"
+    done
+}
+
+print_device_status() {
+    path="$1"
+    kernel="$(basename "$path")"
+    product="$(cat "$path/product" 2>/dev/null || printf 'UH-7000')"
+    manufacturer="$(cat "$path/manufacturer" 2>/dev/null || printf 'TASCAM')"
+    config="$(cat "$path/bConfigurationValue" 2>/dev/null || printf '?')"
+    configs="$(cat "$path/bNumConfigurations" 2>/dev/null || printf '?')"
+    speed="$(cat "$path/speed" 2>/dev/null || printf '?')"
+
+    printf 'Device: %s %s (%s:%s)\n' "$manufacturer" "$product" "$VID" "$PID"
+    printf 'Sysfs:  %s\n' "$path"
+    printf 'USB:    kernel=%s speed=%sMbps config=%s/%s\n' "$kernel" "$speed" "$config" "$configs"
+
+    if [ "$config" = "2" ]; then
+        printf 'Mode:   USB Audio 2.0 configuration selected\n'
+    else
+        printf 'Mode:   vendor-specific configuration selected; run `sudo uh7000ctl configure`\n'
+    fi
+
+    driver_links="$(find "$path" -maxdepth 2 -type l -name driver -print 2>/dev/null || true)"
+    if [ -n "$driver_links" ]; then
+        printf 'Drivers:\n'
+        printf '%s\n' "$driver_links" | while IFS= read -r link; do
+            printf '  %s -> %s\n' "$link" "$(readlink -f "$link")"
+        done
+    else
+        printf 'Drivers: no bound interface drivers reported under this device\n'
+    fi
+}
+
+print_alsa_status() {
+    printf '\nALSA cards:\n'
+    if [ -r /proc/asound/cards ]; then
+        if grep -qiE 'UH-7000|TASCAM|TEAC' /proc/asound/cards; then
+            grep -iE 'UH-7000|TASCAM|TEAC|^[[:space:]]+[0-9]+ \\[' /proc/asound/cards || true
+        else
+            cat /proc/asound/cards
+            printf 'No ALSA card entry matched UH-7000/TASCAM/TEAC.\n'
+        fi
+    else
+        printf 'No /proc/asound/cards found.\n'
+    fi
+
+    streams="$(find /proc/asound -maxdepth 2 -type f -name 'stream*' 2>/dev/null || true)"
+    if [ -n "$streams" ]; then
+        printf '\nUSB audio streams:\n'
+        printf '%s\n' "$streams" | while IFS= read -r stream; do
+            if grep -qiE 'UH-7000|TASCAM|TEAC' "$stream"; then
+                printf '%s\n' "$stream"
+                sed -n '1,80p' "$stream"
+            fi
+        done
+    fi
+}
+
+status() {
+    found=0
+    for path in $(find_devices); do
+        found=1
+        print_device_status "$path"
+        print_alsa_status
+    done
+
+    if [ "$found" -eq 0 ]; then
+        printf 'UH-7000 %s:%s not found.\n' "$VID" "$PID"
+        exit 2
+    fi
+}
+
+configure() {
+    if [ -x "$HELPER" ]; then
+        exec "$HELPER" "${1:-}"
+    fi
+
+    local_helper="$(dirname "$0")/tascam-uh7000-configure"
+    if [ -x "$local_helper" ]; then
+        exec "$local_helper" "${1:-}"
+    fi
+
+    printf 'Configuration helper not found. Expected %s\n' "$HELPER" >&2
+    exit 1
+}
+
+usage() {
+    cat <<EOF
+Usage: uh7000ctl COMMAND
+
+Commands:
+  status       Show USB configuration, driver binding, and ALSA visibility
+  configure    Switch the UH-7000 to USB Audio 2.0 configuration 2
+  help         Show this help
+EOF
+}
+
+case "${1:-status}" in
+    status)
+        status
+        ;;
+    configure)
+        shift || true
+        configure "${1:-}"
+        ;;
+    help|-h|--help)
+        usage
+        ;;
+    *)
+        usage >&2
+        exit 64
+        ;;
+esac
