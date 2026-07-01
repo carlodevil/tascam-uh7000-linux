@@ -9,7 +9,11 @@ the standard `snd_usb_audio` driver.
 
 ## Status
 
-Early hardware support package.
+Early hardware support package. USB configuration, driver binding, and ALSA
+stream exposure work locally. Capture has been verified on both analog input
+channels. The vendor mixer/control plane is still under active reverse
+engineering, and physical analog output may remain muted or unrouted until that
+work is complete.
 
 Known local findings:
 
@@ -18,6 +22,8 @@ Known local findings:
 - Default Linux-visible configuration: `1`, vendor-specific
 - USB Audio 2.0 configuration: `2`
 - Configuration `2` advertises 24-bit PCM, 4 output channels, and 6 input channels
+- Configuration `2` does not expose the full UH-7000 mixer panel through normal
+  ALSA mixer controls
 
 This project does not include TASCAM/Ploytec Windows driver binaries.
 
@@ -90,3 +96,6 @@ journalctl -u 'tascam-uh7000-configure@*'
 
 If ALSA still does not show the device after configuration `2` is active, the
 next implementation step is an ALSA quirk or optional DKMS package.
+
+Avoid forcing configuration `1` through `snd_usb_audio`; local testing showed
+that path can wedge the USB device until a power-cycle/replug.

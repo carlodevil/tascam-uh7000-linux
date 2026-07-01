@@ -47,10 +47,55 @@ Configuration `2` advertises:
 - 4-channel output endpoint
 - 6-channel input endpoint
 - Asynchronous high-speed isochronous endpoints
+- A vendor-specific interface `3` with bulk IN endpoint `0x83` and interrupt
+  OUT endpoint `0x04`
 
 The first implementation uses configuration switching plus `snd_usb_audio`
 `new_id` registration. A direct class-driver bind failed on this kernel, while
 registering `0644:8048` through `new_id` exposed the ALSA streams.
+
+## Local Audio Tests
+
+Configuration `2` capture has been verified on the local machine:
+
+- Channel 1 microphone capture is clean.
+- Channel 2 microphone capture is clean.
+- The ALSA capture stream exposes 6 channels.
+- The ALSA playback stream exposes 4 channels and accepts `S24_3LE` playback.
+
+Physical output is not yet confirmed. Direct ALSA playback opens and runs, but
+the device appears to require additional mixer/routing state before analog
+output is audible.
+
+Configuration `1` should not be used as a playback fallback. It exposes a
+misleading vendor-specific stream when forced through `snd-usb-audio`, but
+local tests timed out while setting frequency and wedged the USB device until a
+power-cycle/replug.
+
+## Control-Plane Findings
+
+The Windows package contains UH-7000 mixer-panel strings and driver strings for
+internal controls such as output volume, monitor volume, ADC boost, stereo mix
+mode, and channel maps. Those controls are not exposed by the Linux
+configuration `2` AudioControl descriptor. Linux currently reports only ALSA PCM
+channel-map controls for this device.
+
+Safe local probes found:
+
+- Interface `3` bulk IN endpoint `0x83` emits 4-byte status packets of the form
+  `0b b0 CONTROL VALUE`.
+- Observed status controls include `0x66`, `0x67`, `0x68`, `0x69`, `0x6b`, and
+  `0x6c`.
+- Windows-driver request `0x49` maps to a vendor device control request. A
+  device-recipient read (`bmRequestType=0xc0`, `bRequest=0x49`, `wValue=0`,
+  `wIndex=0`, length `1`) succeeds while `snd-usb-audio` is bound and returned
+  selector byte `0x02` locally.
+- Generic vendor control scans are unsafe. A broad request scan caused the
+  device to disconnect/re-enumerate during local testing.
+
+An attempted public UAC2 Feature Unit output-volume write was rejected/timed out
+because configuration `2` does not advertise that Feature Unit. That path should
+not be treated as the normal Linux control plane.
 
 ## Implementation Boundary
 
