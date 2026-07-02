@@ -16,7 +16,8 @@ bash -n completions/uh7000ctl
 python3 -m py_compile \
     tools/uh7000_probe.py \
     tools/uh7000_cpl_emulate.py \
-    tools/uh7000_decode_driver_controls.py
+    tools/uh7000_decode_driver_controls.py \
+    tools/uh7000_iso_encoder.py
 
 python3 - <<'PY'
 from pathlib import Path
@@ -57,6 +58,8 @@ grep -q '0x007C' src/uh7000ctl
 grep -q 'all_ff' src/uh7000ctl
 grep -q 'tascam-uh7000-f800-image-v1' tools/uh7000_cpl_emulate.py
 grep -q 'F800_RATE_TABLE' tools/uh7000_cpl_emulate.py
+grep -q 'tascam-uh7000-iso-encoder-v1' tools/uh7000_iso_encoder.py
+grep -q '0xf106cce0' tools/uh7000_iso_encoder.py
 grep -q '0x2200fc' src/uh7000ctl
 grep -q '0x220100' src/uh7000ctl
 grep -q 'UH7000_EXPERIMENTAL_0X55_WRITE' src/uh7000ctl
@@ -109,6 +112,10 @@ grep -q '0x007c receives image offset 0x000..0x1ff' /tmp/uh7000ctl-plan-f800.txt
 grep -q 'UH7000_EXPERIMENTAL_0X55_WRITE=1' docs/testing.md
 grep -q 'does not upload the' docs/testing.md
 grep -q '0xf800 image automatically' docs/testing.md
+
+python3 tools/uh7000_iso_encoder.py --mode uh7000 --json >/tmp/uh7000-iso-encoder.json
+grep -q 'tascam-uh7000-iso-encoder-v1' /tmp/uh7000-iso-encoder.json
+grep -q '000001000002000005000006' /tmp/uh7000-iso-encoder.json
 
 cat >/tmp/uh7000-decoder-fixture.dis <<'EOF'
     f1033f10:	c7 44 24 64 02 00 00 	mov    DWORD PTR [rsp+0x64],0x2

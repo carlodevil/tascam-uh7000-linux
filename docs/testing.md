@@ -199,6 +199,21 @@ if capture clips immediately after upload. If manual rollback is needed:
 UH7000_EXPERIMENTAL_0X55_WRITE=1 sudo -E uh7000ctl f800-restore /tmp/uh7000-f800-backup.xxxxxx.bin
 ```
 
+## Offline Output Encoder Model
+
+The Windows USB driver installs a product-specific ISO OUT encoder before
+submitting playback data. Model the decoded packing routines with:
+
+```sh
+python3 tools/uh7000_iso_encoder.py --mode uh7000 --json
+python3 tools/uh7000_iso_encoder.py --mode uh7000 --tone-raw /tmp/uh7000-encoded-tone.raw
+```
+
+The UH-7000 branch maps virtual source slots `0,1,4,5` into the 4-channel
+endpoint frame. If the hardware is reconnected and preflight passes, the raw
+tone file can be played with the `aplay_command` printed by the tool, but output
+loopback remains the authority for success.
+
 ## Issue Reports
 
 Attach this output to GitHub issues:

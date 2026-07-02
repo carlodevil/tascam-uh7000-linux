@@ -253,6 +253,20 @@ Safe local probes found:
   implementation is harder than replaying the visible control-panel requests:
   part of the Windows behavior appears to be host-driver state used while
   preparing isochronous output, not a standalone USB control transfer.
+- The decoded ISO OUT encoder path now has a local model in
+  `tools/uh7000_iso_encoder.py`. The UH-7000 product branch logs
+  `ISO OUT ENCODER PROD_TEAC_UH7000` at `0xf1021641` and installs either the
+  generic encoder `0xf106c850` or the UH-7000-specific encoder `0xf106cce0`
+  depending on a descriptor/status bit. The generic encoder packs each 32-bit
+  left-aligned source sample into 3 little-endian bytes. The UH-7000 encoder
+  consumes a virtual 8-slot source layout and emits a 4-channel endpoint frame
+  from source slots `0,1,4,5`, skipping slots `2,3` and `6,7`. A second generic
+  branch at `0xf1021724` can install `0xf106c930`, which packs stereo pairs in
+  swapped order. Because the loopback test plays the same 1 kHz tone on all
+  four ALSA channels, channel order alone should not erase the tone; the more
+  important finding is that Windows does product-specific output preparation in
+  the USB driver while Linux currently relies on the standard class-driver
+  path for configuration `2`.
 
 The helper call-site table can be regenerated from an objdump-style driver
 disassembly:

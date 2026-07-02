@@ -51,7 +51,7 @@ make test
 ## Install
 
 ```sh
-sudo dpkg -i dist/tascam-uh7000-linux_0.1.33-1_all.deb
+sudo dpkg -i dist/tascam-uh7000-linux_0.1.34-1_all.deb
 ```
 
 Unplug and replug the UH-7000, then check:
@@ -282,6 +282,18 @@ call-site table from a local disassembly:
 ```sh
 python3 tools/uh7000_decode_driver_controls.py /tmp/uh7000u.dis --markdown
 ```
+
+The product-specific Windows ISO OUT encoder can be modeled offline:
+
+```sh
+python3 tools/uh7000_iso_encoder.py --mode uh7000 --json
+python3 tools/uh7000_iso_encoder.py --mode uh7000 --tone-raw /tmp/uh7000-encoded-tone.raw
+```
+
+The decoded UH-7000 encoder branch emits a 4-channel endpoint frame from
+virtual source slots `0,1,4,5`. This does not by itself explain total silence
+when all four ALSA channels carry the same tone, but it confirms that Windows
+does product-specific playback preparation before USB submission.
 
 The extracted control-panel binary can also be emulated offline to regenerate
 the bounded routing/effect candidate matrix:
