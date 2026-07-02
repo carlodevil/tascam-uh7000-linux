@@ -1,0 +1,5 @@
+blank_issues_enabled: true
+contact_links:
+  - name: Test flow documentation
+    url: https://github.com/carlodevil/tascam-uh7000-linux/blob/main/docs/testing.md
+    about: Read the safe preflight and loopback test sequence before filing audio reports.

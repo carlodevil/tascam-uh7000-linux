@@ -1,3 +1,243 @@
+tascam-uh7000-linux (0.1.33-1) unstable; urgency=medium
+
+  * Add guarded f800-upload and f800-restore commands for request 0x55 testing.
+  * Require explicit UH7000_EXPERIMENTAL_0X55_WRITE opt-in for 0xf800 writes.
+  * Back up, read back, and capture-check experimental 0xf800 page uploads.
+
+ -- carlodevil <64757000+carlodevil@users.noreply.github.com>  Thu, 02 Jul 2026 09:55:00 +0200
+
+tascam-uh7000-linux (0.1.32-1) unstable; urgency=medium
+
+  * Add offline Cpl_UH7000 0xf800 mixer/UI image regeneration.
+  * Document the 0x1004 Windows IOCTL wrappers and request 0x55 page mapping.
+  * Add uh7000ctl control-plan f800 as a dry-run layout reference.
+
+ -- carlodevil <64757000+carlodevil@users.noreply.github.com>  Thu, 02 Jul 2026 09:30:00 +0200
+
+tascam-uh7000-linux (0.1.31-1) unstable; urgency=medium
+
+  * Expand uh7000ctl state-dump to include verified 0xf800-derived 0x55 pages.
+  * Mark all-0xff and all-zero page reads in state-dump metadata.
+  * Fix the driver-control decoder so computed stack arguments do not inherit
+    stale immediate values.
+
+ -- carlodevil <64757000+carlodevil@users.noreply.github.com>  Thu, 02 Jul 2026 09:05:00 +0200
+
+tascam-uh7000-linux (0.1.30-1) unstable; urgency=medium
+
+  * Document the Windows 0x0499/0x1004 mixer image path behind 0x55 pages.
+  * Add decoded 0x54 and 0x55 helper call sites to reverse-engineering notes.
+
+ -- carlodevil <64757000+carlodevil@users.noreply.github.com>  Thu, 02 Jul 2026 08:50:00 +0200
+
+tascam-uh7000-linux (0.1.29-1) unstable; urgency=medium
+
+  * Add uh7000ctl state-dump for read-only request 0x55 page evidence.
+  * Document the verified 0x55 page 0x1f00 read and rejected page 0x0002.
+  * Classify 0x54 and 0x55 as UH-7000 vendor-family driver call sites.
+
+ -- carlodevil <64757000+carlodevil@users.noreply.github.com>  Thu, 02 Jul 2026 08:35:00 +0200
+
+tascam-uh7000-linux (0.1.28-1) unstable; urgency=medium
+
+  * Add explicit playback feedback detection to preflight and JSON reports.
+  * Gate output-loopback tests on endpoint 0x85 explicit feedback mode.
+  * Document the Windows driver-side ISO output encoder/routing evidence.
+
+ -- carlodevil <64757000+carlodevil@users.noreply.github.com>  Thu, 02 Jul 2026 08:15:00 +0200
+
+tascam-uh7000-linux (0.1.27-1) unstable; urgency=medium
+
+  * Fix suppress-noise installed payload length to the required 64 bytes.
+  * Add a smoke assertion for the embedded 0x4d recovery payload length.
+
+ -- carlodevil <64757000+carlodevil@users.noreply.github.com>  Thu, 02 Jul 2026 07:45:00 +0200
+
+tascam-uh7000-linux (0.1.26-1) unstable; urgency=medium
+
+  * Add uh7000ctl suppress-noise for 0x4d-only clipped-output recovery.
+  * Fix Windows driver transfer-length decoding for pointer-based lengths.
+  * Document that noise suppression is a recovery gate, not playback routing.
+
+ -- carlodevil <64757000+carlodevil@users.noreply.github.com>  Thu, 02 Jul 2026 07:35:00 +0200
+
+tascam-uh7000-linux (0.1.25-1) unstable; urgency=medium
+
+  * Capture raw ALSA streams explicitly in diagnostics and loopback checks.
+  * Fix channel-alignment analysis by avoiding WAV headers in raw parsers.
+
+ -- carlodevil <64757000+carlodevil@users.noreply.github.com>  Thu, 02 Jul 2026 07:15:00 +0200
+
+tascam-uh7000-linux (0.1.24-1) unstable; urgency=medium
+
+  * Add uh7000ctl control-plan routes for dry-run route-candidate review.
+  * Add uh7000ctl input-noise for capture-only spectral noise analysis.
+  * Document analog output noise isolation before loopback testing.
+
+ -- carlodevil <64757000+carlodevil@users.noreply.github.com>  Thu, 02 Jul 2026 06:55:00 +0200
+
+tascam-uh7000-linux (0.1.23-1) unstable; urgency=medium
+
+  * Add uh7000ctl wait-clean for no-playback preflight polling.
+  * Support one-shot ntfy.sh manual-action notifications while waiting for
+    a clean capture baseline.
+
+ -- carlodevil <64757000+carlodevil@users.noreply.github.com>  Thu, 02 Jul 2026 06:35:00 +0200
+
+tascam-uh7000-linux (0.1.22-1) unstable; urgency=medium
+
+  * Classify clipped capture patterns in capture-health and JSON reports.
+  * Include clipped-channel recovery recommendations in diagnostics.
+
+ -- carlodevil <64757000+carlodevil@users.noreply.github.com>  Thu, 02 Jul 2026 06:15:00 +0200
+
+tascam-uh7000-linux (0.1.21-1) unstable; urgency=medium
+
+  * Decode 0x20c routing slices in the offline CPL emulator matrix.
+  * Document routing-slot evidence for input/output selector candidates.
+
+ -- carlodevil <64757000+carlodevil@users.noreply.github.com>  Thu, 02 Jul 2026 05:55:00 +0200
+
+tascam-uh7000-linux (0.1.20-1) unstable; urgency=medium
+
+  * Add uh7000ctl recover for no-playback quiet recovery with before/after
+    capture checks.
+  * Document the clipped-capture recovery workflow.
+
+ -- carlodevil <64757000+carlodevil@users.noreply.github.com>  Thu, 02 Jul 2026 05:30:00 +0200
+
+tascam-uh7000-linux (0.1.19-1) unstable; urgency=medium
+
+  * Add an offline CPL emulator matrix for routing/effect candidates.
+  * Install generated matrix evidence with package documentation.
+
+ -- carlodevil <64757000+carlodevil@users.noreply.github.com>  Thu, 02 Jul 2026 05:10:00 +0200
+
+tascam-uh7000-linux (0.1.18-1) unstable; urgency=medium
+
+  * Add GitHub audio report issue template requiring uh7000ctl report output.
+  * Add installed release checklist for local, hardware-safe, and tag checks.
+
+ -- carlodevil <64757000+carlodevil@users.noreply.github.com>  Thu, 02 Jul 2026 04:05:00 +0200
+
+tascam-uh7000-linux (0.1.17-1) unstable; urgency=medium
+
+  * Add bash completion for uh7000ctl commands and control-plan names.
+  * Extend CI smoke checks to verify the completion file is packaged.
+
+ -- carlodevil <64757000+carlodevil@users.noreply.github.com>  Thu, 02 Jul 2026 03:50:00 +0200
+
+tascam-uh7000-linux (0.1.16-1) unstable; urgency=medium
+
+  * Make generated Debian packages lintian-clean.
+  * Drop empty prerm maintainer script and add AppStream homepage metadata.
+
+ -- carlodevil <64757000+carlodevil@users.noreply.github.com>  Thu, 02 Jul 2026 03:35:00 +0200
+
+tascam-uh7000-linux (0.1.15-1) unstable; urgency=medium
+
+  * Add AppStream metainfo with UH-7000 USB modalias.
+  * Remove unnecessary systemctl stop from prerm.
+
+ -- carlodevil <64757000+carlodevil@users.noreply.github.com>  Thu, 02 Jul 2026 03:20:00 +0200
+
+tascam-uh7000-linux (0.1.14-1) unstable; urgency=medium
+
+  * Add lintian packaging validation to the release workflow.
+  * Install udev rules under /usr/lib/udev for usr-merged systems.
+  * Install Debian changelog and generate deterministic gzip files.
+
+ -- carlodevil <64757000+carlodevil@users.noreply.github.com>  Thu, 02 Jul 2026 03:05:00 +0200
+
+tascam-uh7000-linux (0.1.13-1) unstable; urgency=medium
+
+  * Add installed testing guide for safe preflight and loopback workflow.
+  * Add JSON schema documentation for uh7000ctl report output.
+
+ -- carlodevil <64757000+carlodevil@users.noreply.github.com>  Thu, 02 Jul 2026 02:45:00 +0200
+
+tascam-uh7000-linux (0.1.12-1) unstable; urgency=medium
+
+  * Install uh7000ctl(1) manual page with the Debian package.
+  * Extend CI smoke checks to verify the manual page package contents.
+
+ -- carlodevil <64757000+carlodevil@users.noreply.github.com>  Thu, 02 Jul 2026 02:25:00 +0200
+
+tascam-uh7000-linux (0.1.11-1) unstable; urgency=medium
+
+  * Add a hardware-free CI smoke test for safe CLI commands, research tools,
+    and Debian package contents.
+  * Run the smoke test from GitHub Actions and expose it through make test.
+
+ -- carlodevil <64757000+carlodevil@users.noreply.github.com>  Thu, 02 Jul 2026 02:05:00 +0200
+
+tascam-uh7000-linux (0.1.10-1) unstable; urgency=medium
+
+  * Make the local shell scripts pass the CI ShellCheck gate.
+  * Generate SHA256SUMS alongside Debian package release artifacts.
+
+ -- carlodevil <64757000+carlodevil@users.noreply.github.com>  Thu, 02 Jul 2026 01:50:00 +0200
+
+tascam-uh7000-linux (0.1.9-1) unstable; urgency=medium
+
+  * Add uh7000ctl report for JSON diagnostics and release evidence.
+  * Publish Debian package artifacts to GitHub Releases on version tags.
+
+ -- carlodevil <64757000+carlodevil@users.noreply.github.com>  Thu, 02 Jul 2026 01:35:00 +0200
+
+tascam-uh7000-linux (0.1.8-1) unstable; urgency=medium
+
+  * Add uh7000ctl loopback-test for gated output-to-input verification.
+  * Refuse to play the test tone unless preflight passes first.
+
+ -- carlodevil <64757000+carlodevil@users.noreply.github.com>  Thu, 02 Jul 2026 01:15:00 +0200
+
+tascam-uh7000-linux (0.1.7-1) unstable; urgency=medium
+
+  * Add uh7000ctl preflight for the safe output-routing test gate.
+  * Check USB configuration, driver binding, ALSA stream shape, vendor control
+    status, and capture clipping in one command.
+
+ -- carlodevil <64757000+carlodevil@users.noreply.github.com>  Thu, 02 Jul 2026 00:55:00 +0200
+
+tascam-uh7000-linux (0.1.6-1) unstable; urgency=medium
+
+  * Add uh7000ctl control-plan for dry-run decoded mixer transfer plans.
+  * Document the safe recovery/test gate before any further output routing
+    experiments.
+
+ -- carlodevil <64757000+carlodevil@users.noreply.github.com>  Thu, 02 Jul 2026 00:35:00 +0200
+
+tascam-uh7000-linux (0.1.5-1) unstable; urgency=medium
+
+  * Add a reproducible Windows-driver control-transfer decoder research tool.
+  * Document decoded helper call sites and the promotion boundary for Linux
+    runtime controls.
+
+ -- carlodevil <64757000+carlodevil@users.noreply.github.com>  Thu, 02 Jul 2026 00:15:00 +0200
+
+tascam-uh7000-linux (0.1.4-1) unstable; urgency=medium
+
+  * Add uh7000ctl control-status for read-only verified vendor selector state.
+  * Document decoded Windows control-plane initialization request groups.
+
+ -- carlodevil <64757000+carlodevil@users.noreply.github.com>  Wed, 01 Jul 2026 23:25:00 +0200
+
+tascam-uh7000-linux (0.1.3-1) unstable; urgency=medium
+
+  * Add uh7000ctl capture-health for repeatable UH-7000 input clipping checks.
+  * Document unsafe decoded output/effect-mode payloads as research-only.
+
+ -- carlodevil <64757000+carlodevil@users.noreply.github.com>  Wed, 01 Jul 2026 23:10:00 +0200
+
+tascam-uh7000-linux (0.1.2-1) unstable; urgency=medium
+
+  * Add uh7000ctl quiet for the verified vendor mixer reset that clears
+    USB-side capture overload.
+  * Document current vendor mixer and output-routing findings.
+
+ -- carlodevil <64757000+carlodevil@users.noreply.github.com>  Wed, 01 Jul 2026 22:15:00 +0200
+
 tascam-uh7000-linux (0.1.1-1) unstable; urgency=medium
 
   * Register UH-7000 with snd-usb-audio after switching USB configuration.

@@ -1,0 +1,19 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<component type="driver">
+  <id>io.github.carlodevil.tascam_uh7000_linux</id>
+  <name>TASCAM UH-7000 Linux Support</name>
+  <summary>USB Audio 2.0 configuration helper for the TASCAM UH-7000</summary>
+  <description>
+    <p>
+      Selects the UH-7000 USB Audio 2.0 configuration and registers the device
+      with the Linux snd_usb_audio driver. Includes cautious diagnostics for the
+      reverse-engineered vendor control plane.
+    </p>
+  </description>
+  <metadata_license>CC0-1.0</metadata_license>
+  <project_license>MIT</project_license>
+  <url type="homepage">https://github.com/carlodevil/tascam-uh7000-linux</url>
+  <provides>
+    <modalias>usb:v0644p8048d*</modalias>
+  </provides>
+</component>

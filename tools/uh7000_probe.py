@@ -95,7 +95,7 @@ def print_descriptors(dev: usb.core.Device) -> None:
         print(f"manufacturer={usb.util.get_string(dev, dev.iManufacturer)}")
         print(f"product={usb.util.get_string(dev, dev.iProduct)}")
         print(f"serial={usb.util.get_string(dev, dev.iSerialNumber)}")
-    except usb.core.USBError as exc:
+    except (ValueError, usb.core.USBError) as exc:
         print(f"string read failed: {exc}")
 
     for cfg in dev:
@@ -200,15 +200,18 @@ def usbfs_control_transfer(
 
 
 def selector_status_read(dev: usb.core.Device, timeout_ms: int) -> int:
-    payload = usbfs_control_read(
-        dev,
-        VENDOR_DEVICE_IN,
-        UH7000_SELECTOR_REQUEST,
-        0,
-        0,
-        1,
-        timeout_ms,
-    )
+    try:
+        payload = usbfs_control_read(
+            dev,
+            VENDOR_DEVICE_IN,
+            UH7000_SELECTOR_REQUEST,
+            0,
+            0,
+            1,
+            timeout_ms,
+        )
+    except OSError as exc:
+        raise SystemExit(f"selector status read failed: {exc}") from exc
     value = payload[0]
     print(f"\nUH-7000 selector status read: 0x{value:02x}")
     return value
@@ -218,15 +221,18 @@ def selector_status_write(dev: usb.core.Device, value: int, timeout_ms: int) -> 
     if value < 0 or value > 0xFF:
         raise SystemExit("selector status value must fit one byte")
     print(f"\nUH-7000 selector status write: 0x{value:02x}")
-    transferred = usbfs_control_transfer(
-        dev,
-        VENDOR_DEVICE_OUT,
-        UH7000_SELECTOR_REQUEST,
-        value,
-        0,
-        b"",
-        timeout_ms,
-    )
+    try:
+        transferred = usbfs_control_transfer(
+            dev,
+            VENDOR_DEVICE_OUT,
+            UH7000_SELECTOR_REQUEST,
+            value,
+            0,
+            b"",
+            timeout_ms,
+        )
+    except OSError as exc:
+        raise SystemExit(f"selector status write failed: {exc}") from exc
     print(f"  transferred {transferred} bytes")
 
 
@@ -256,6 +262,94 @@ def usbfs_control_read(
     finally:
         os.close(fd)
     return bytes(buf.raw[:transferred])
+
+
+def parse_int(text: str) -> int:
+    try:
+        return int(text, 0)
+    except ValueError as exc:
+        raise argparse.ArgumentTypeError(f"invalid integer {text!r}") from exc
+
+
+def parse_vendor_read(text: str) -> tuple[int, int, int, int, int]:
+    parts = text.split(":")
+    if len(parts) not in (4, 5):
+        raise argparse.ArgumentTypeError(
+            "expected REQUEST:WVALUE:WINDEX:LENGTH[:REQUEST_TYPE]"
+        )
+    request, value, index, length = (parse_int(part) for part in parts[:4])
+    request_type = parse_int(parts[4]) if len(parts) == 5 else VENDOR_DEVICE_IN
+    return request_type, request, value, index, length
+
+
+def parse_vendor_write(text: str) -> tuple[int, int, int, bytes, int]:
+    parts = text.split(":")
+    if len(parts) not in (4, 5):
+        raise argparse.ArgumentTypeError(
+            "expected REQUEST:WVALUE:WINDEX:HEX_PAYLOAD[:REQUEST_TYPE]"
+        )
+    request, value, index = (parse_int(part) for part in parts[:3])
+    hex_payload = parts[3].replace(" ", "")
+    if len(hex_payload) % 2:
+        raise argparse.ArgumentTypeError("hex payload must have an even number of digits")
+    try:
+        payload = bytes.fromhex(hex_payload)
+    except ValueError as exc:
+        raise argparse.ArgumentTypeError("payload is not valid hex") from exc
+    request_type = parse_int(parts[4]) if len(parts) == 5 else VENDOR_DEVICE_OUT
+    return request_type, request, value, index, payload
+
+
+def vendor_read_probe(
+    dev: usb.core.Device,
+    request_type: int,
+    request: int,
+    value: int,
+    index: int,
+    length: int,
+    timeout_ms: int,
+) -> bytes:
+    print(
+        "\nVendor control read: "
+        f"bm=0x{request_type:02x} req=0x{request:02x} "
+        f"wValue=0x{value:04x} wIndex=0x{index:04x} length={length}"
+    )
+    try:
+        payload = usbfs_control_read(
+            dev, request_type, request, value, index, length, timeout_ms
+        )
+    except OSError as exc:
+        print(f"  failed: {exc}")
+        return b""
+    print(f"  transferred {len(payload)} bytes")
+    if payload:
+        print(hexdump(payload))
+    return payload
+
+
+def vendor_write_probe(
+    dev: usb.core.Device,
+    request_type: int,
+    request: int,
+    value: int,
+    index: int,
+    payload: bytes,
+    timeout_ms: int,
+) -> int:
+    print(
+        "\nVendor control write: "
+        f"bm=0x{request_type:02x} req=0x{request:02x} "
+        f"wValue=0x{value:04x} wIndex=0x{index:04x} length={len(payload)}"
+    )
+    try:
+        transferred = usbfs_control_transfer(
+            dev, request_type, request, value, index, payload, timeout_ms
+        )
+    except OSError as exc:
+        print(f"  failed: {exc}")
+        return -1
+    print(f"  transferred {transferred} bytes")
+    return transferred
 
 
 def parse_packet_arg(raw: str) -> tuple[int, int]:
@@ -291,6 +385,18 @@ def main(argv: list[str]) -> int:
         metavar="VALUE",
         help="write the UH-7000 vendor selector byte (Windows request 0x49)",
     )
+    parser.add_argument(
+        "--vendor-read",
+        action="append",
+        type=parse_vendor_read,
+        help="explicit vendor read REQUEST:WVALUE:WINDEX:LENGTH[:REQUEST_TYPE]",
+    )
+    parser.add_argument(
+        "--vendor-write",
+        action="append",
+        type=parse_vendor_write,
+        help="explicit vendor write REQUEST:WVALUE:WINDEX:HEX_PAYLOAD[:REQUEST_TYPE]",
+    )
     args = parser.parse_args(argv)
 
     dev = find_device()
@@ -306,6 +412,11 @@ def main(argv: list[str]) -> int:
         selector_status_read(dev, args.timeout_ms)
     if args.selector_status_write is not None:
         selector_status_write(dev, args.selector_status_write, args.timeout_ms)
+
+    for read_args in args.vendor_read or []:
+        vendor_read_probe(dev, *read_args, timeout_ms=args.timeout_ms)
+    for write_args in args.vendor_write or []:
+        vendor_write_probe(dev, *write_args, timeout_ms=args.timeout_ms)
 
     for control, value in args.send_packet:
         send_status_packet(dev, control, value, args.timeout_ms)

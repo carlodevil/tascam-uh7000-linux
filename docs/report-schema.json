@@ -1,0 +1,145 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://example.invalid/tascam-uh7000-report.schema.json",
+  "title": "TASCAM UH-7000 diagnostic report",
+  "type": "object",
+  "required": [
+    "schema",
+    "timestamp",
+    "device_id",
+    "devices",
+    "alsa",
+    "capture_health",
+    "safe_for_output_test"
+  ],
+  "properties": {
+    "schema": {
+      "const": "tascam-uh7000-report-v1"
+    },
+    "timestamp": {
+      "type": "integer"
+    },
+    "device_id": {
+      "const": "0644:8048"
+    },
+    "safe_for_output_test": {
+      "type": "boolean"
+    },
+    "devices": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "required": [
+          "sysfs",
+          "configuration",
+          "drivers",
+          "devnode",
+          "vendor_selector_0x49"
+        ],
+        "properties": {
+          "sysfs": { "type": "string" },
+          "manufacturer": { "type": ["string", "null"] },
+          "product": { "type": ["string", "null"] },
+          "speed_mbps": { "type": ["string", "null"] },
+          "configuration": { "type": ["string", "null"] },
+          "num_configurations": { "type": ["string", "null"] },
+          "devnode": { "type": ["string", "null"] },
+          "vendor_selector_0x49": { "type": ["integer", "null"] },
+          "vendor_selector_error": { "type": ["string", "null"] },
+          "drivers": {
+            "type": "object",
+            "properties": {
+              "2.0": { "type": ["string", "null"] },
+              "2.1": { "type": ["string", "null"] },
+              "2.2": { "type": ["string", "null"] },
+              "2.3": { "type": ["string", "null"] }
+            },
+            "additionalProperties": { "type": ["string", "null"] }
+          }
+        },
+        "additionalProperties": true
+      }
+    },
+    "alsa": {
+      "type": "object",
+      "required": ["cards_text", "uh7000_visible", "streams"],
+      "properties": {
+        "cards_text": { "type": "string" },
+        "uh7000_visible": { "type": "boolean" },
+        "playback_feedback": {
+          "$ref": "#/$defs/playback_feedback"
+        },
+        "streams": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "required": ["path", "text"],
+            "properties": {
+              "path": { "type": "string" },
+              "text": { "type": "string" },
+              "playback_feedback": {
+                "$ref": "#/$defs/playback_feedback"
+              }
+            },
+            "additionalProperties": true
+          }
+        }
+      },
+      "additionalProperties": true
+    },
+    "capture_health": {
+      "type": "object",
+      "required": ["ok"],
+      "properties": {
+        "ok": { "type": "boolean" },
+        "error": { "type": "string" },
+        "rate": { "type": "integer" },
+        "frames": { "type": "integer" },
+        "format": { "type": "string" },
+        "channels": { "type": "integer" },
+        "clipped_channels": {
+          "type": "array",
+          "items": { "type": "integer" }
+        },
+        "clip_count_total": { "type": "integer" },
+        "clip_pattern": {
+          "type": "string",
+          "enum": ["none", "all-channels", "odd-input-mirror", "even-input-mirror", "partial"]
+        },
+        "recommendation": { "type": "string" },
+        "per_channel": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "required": ["channel", "peak_dbfs", "rms_dbfs", "clips"],
+            "properties": {
+              "channel": { "type": "integer" },
+              "peak_dbfs": { "type": ["number", "null"] },
+              "rms_dbfs": { "type": ["number", "null"] },
+              "clips": { "type": "integer" }
+            },
+            "additionalProperties": true
+          }
+        }
+      },
+      "additionalProperties": true
+    }
+  },
+  "$defs": {
+    "playback_feedback": {
+      "type": "object",
+      "required": ["explicit_feedback", "recommendation"],
+      "properties": {
+        "path": { "type": "string" },
+        "present": { "type": "boolean" },
+        "sync_endpoint": { "type": ["string", "null"] },
+        "sync_endpoint_address": { "type": ["string", "null"] },
+        "implicit_feedback_mode": { "type": ["string", "null"] },
+        "explicit_feedback": { "type": "boolean" },
+        "recommendation": { "type": "string" }
+      },
+      "additionalProperties": true
+    }
+  },
+  "additionalProperties": true
+}

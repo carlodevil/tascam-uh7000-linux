@@ -1,0 +1,64 @@
+name: UH-7000 audio or hardware report
+description: Report capture, output, routing, or control-plane behavior.
+title: "[audio] "
+labels:
+  - audio
+  - hardware
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Attach `uh7000ctl report` output whenever possible. It is the fastest
+        way to compare USB configuration, ALSA stream shape, vendor selector
+        state, and capture clipping.
+  - type: textarea
+    id: summary
+    attributes:
+      label: Summary
+      description: What did you expect, and what happened instead?
+    validations:
+      required: true
+  - type: textarea
+    id: report
+    attributes:
+      label: uh7000ctl report
+      description: Run `sudo uh7000ctl report 1 > uh7000-report.json` and paste or attach it.
+      render: json
+    validations:
+      required: true
+  - type: textarea
+    id: preflight
+    attributes:
+      label: Preflight output
+      description: Paste `sudo uh7000ctl preflight 2` output if relevant.
+      render: text
+    validations:
+      required: false
+  - type: dropdown
+    id: physical_state
+    attributes:
+      label: Physical state
+      options:
+        - No loopback connected
+        - Outputs routed to inputs
+        - Microphone connected to channel 1
+        - Microphone connected to channel 2
+        - AES/EBU path under test
+        - Other
+    validations:
+      required: true
+  - type: input
+    id: package_version
+    attributes:
+      label: Package version
+      description: Output of `dpkg-query -W tascam-uh7000-linux`.
+      placeholder: "tascam-uh7000-linux 0.1.x-1"
+    validations:
+      required: true
+  - type: textarea
+    id: notes
+    attributes:
+      label: Additional notes
+      description: Include cabling, gain position, sample rate, and front-panel meter state.
+    validations:
+      required: false
