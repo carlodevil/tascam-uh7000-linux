@@ -1,4 +1,12 @@
 #!/usr/bin/make -f
 
+export PYBUILD_NAME=tascam-uh7000-linux
+export PYBUILD_SYSTEM=pyproject
+export PYBUILD_TEST_ARGS=-v
+
 %:
-	dh $@
+	dh $@ --with python3 --buildsystem=pybuild
+
+override_dh_auto_clean:
+	dh_auto_clean
+	rm -rf .pytest_cache build dist *.egg-info src/*.egg-info

@@ -1,3 +1,14 @@
+tascam-uh7000-linux (0.2.0~beta1) unstable; urgency=medium
+
+  * Rebuild the project around the confirmed UAC2 configuration 2 path.
+  * Add typed Python state, read-only protocol transport and D-Bus service.
+  * Add a clean-room Qt Quick Interface, Mixer and Effects panel.
+  * Replace unsafe loopback assumptions with fail-closed playback gates.
+  * Move unverified mixer writes out of the installed user workflow.
+  * Convert packaging to debhelper/pybuild for Debian 13.
+
+ -- carlodevil <64757000+carlodevil@users.noreply.github.com>  Sat, 11 Jul 2026 18:00:00 +0200
+
 tascam-uh7000-linux (0.1.34-1) unstable; urgency=medium
 
   * Add an offline model of the Windows UH-7000 ISO OUT encoder functions.

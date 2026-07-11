@@ -1,49 +1,81 @@
-name: Build Debian package
+name: Debian 13 build and test
 
 on:
   push:
-    branches: [ main ]
-    tags: [ 'v*' ]
+    branches: [main, "agent/**"]
+    tags: ["v*"]
   pull_request:
   workflow_dispatch:
+
+permissions:
+  contents: read
 
 jobs:
   build:
     runs-on: ubuntu-latest
     container: debian:trixie
-    permissions:
-      contents: write
     steps:
-      - name: Install build dependencies
+      - name: Install checkout prerequisites
         run: |
           apt-get update
-          apt-get install -y --no-install-recommends ca-certificates dpkg-dev lintian python3 shellcheck
-      - name: Check out repository
-        uses: actions/checkout@v4
-      - name: Shellcheck scripts
-        run: shellcheck completions/uh7000ctl src/uh7000ctl src/tascam-uh7000-configure scripts/build-deb.sh scripts/ci-smoke.sh packaging/postinst packaging/postrm
-      - name: Smoke test package and tools
-        run: scripts/ci-smoke.sh
-      - name: Build package
+          apt-get install -y --no-install-recommends ca-certificates git
+      - uses: actions/checkout@v4
+      - name: Install build and runtime dependencies
         run: |
-          scripts/build-deb.sh
-          sha256sum dist/*.deb > dist/SHA256SUMS
+          apt-get update
+          apt-get install -y --no-install-recommends \
+            bash-completion devscripts dpkg-dev fonts-dejavu-core lintian \
+            pybuild-plugin-pyproject python3-all python3-dbus-next python3-pytest python3-ruff \
+            python3-pyside6.qtdbus python3-pyside6.qtquick python3-setuptools python3-usb \
+            qml6-module-qtquick qml6-module-qtquick-controls \
+            qml6-module-qtquick-layouts shellcheck xvfb
+          apt-get build-dep -y ./
+      - name: Static and unit tests
+        run: |
+          shellcheck src/tascam-uh7000-configure scripts/build-deb.sh scripts/ci-smoke.sh \
+            debian/tascam-uh7000-linux.postinst debian/tascam-uh7000-linux.postrm
+          ruff check src tests
+          ruff format --check src tests
+          scripts/ci-smoke.sh
+      - name: Offscreen Qt panel smoke test
+        run: |
+          PYTHONPATH=src QT_QPA_PLATFORM=offscreen UH7000_PANEL_TEST_EXIT_MS=1000 \
+            python3 -m uh7000.panel
+      - name: Build Debian package
+        run: scripts/build-deb.sh
       - name: Inspect package
         run: |
           dpkg-deb --info dist/*.deb
-          dpkg-deb --contents dist/*.deb
+          dpkg-deb --contents dist/*.deb | tee /tmp/package-contents
+          ! grep -Eq 'tools/|control-plan-matrix|f800' /tmp/package-contents
           lintian --tag-display-limit 0 dist/*.deb
-      - name: Upload artifact
-        uses: actions/upload-artifact@v4
+      - name: Install and remove package
+        run: |
+          apt-get install -y ./dist/*.deb
+          uh7000ctl --json status >/tmp/installed-status.json
+          uh7000ctl --json playback-plan >/tmp/installed-plan.json
+          grep -q 'io.github.carlodevil.UH7000.State.v1' /tmp/installed-status.json
+          apt-get remove -y tascam-uh7000-linux
+      - uses: actions/upload-artifact@v4
         with:
-          name: tascam-uh7000-linux-deb
+          name: tascam-uh7000-linux-debian13
           path: |
             dist/*.deb
             dist/SHA256SUMS
-      - name: Publish GitHub release asset
-        if: startsWith(github.ref, 'refs/tags/v')
-        uses: softprops/action-gh-release@v2
+  release:
+    if: startsWith(github.ref, 'refs/tags/v')
+    needs: build
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/download-artifact@v4
         with:
+          name: tascam-uh7000-linux-debian13
+          path: dist
+      - uses: softprops/action-gh-release@v2
+        with:
+          prerelease: ${{ contains(github.ref_name, 'beta') }}
           files: |
             dist/*.deb
             dist/SHA256SUMS

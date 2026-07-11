@@ -1,18 +1,22 @@
 <?xml version="1.0" encoding="UTF-8"?>
-<component type="driver">
+<component type="desktop-application">
   <id>io.github.carlodevil.tascam_uh7000_linux</id>
   <name>TASCAM UH-7000 Linux Support</name>
-  <summary>USB Audio 2.0 configuration helper for the TASCAM UH-7000</summary>
+  <summary>Unofficial UAC2 integration and feedback-safe control panel</summary>
   <description>
     <p>
-      Selects the UH-7000 USB Audio 2.0 configuration and registers the device
-      with the Linux snd_usb_audio driver. Includes cautious diagnostics for the
-      reverse-engineered vendor control plane.
+      Selects the UH-7000 USB Audio 2.0 configuration, registers it with the
+      stock Linux snd_usb_audio driver, and provides a clean-room control panel.
+      Playback tests are locked until software and DSP monitor loops are absent.
     </p>
   </description>
   <metadata_license>CC0-1.0</metadata_license>
   <project_license>MIT</project_license>
   <url type="homepage">https://github.com/carlodevil/tascam-uh7000-linux</url>
+  <launchable type="desktop-id">io.github.carlodevil.UH7000.desktop</launchable>
+  <releases>
+    <release version="0.2.0-beta.1" date="2026-07-11" type="development"/>
+  </releases>
   <provides>
     <modalias>usb:v0644p8048d*</modalias>
   </provides>

@@ -1,0 +1,4 @@
+[D-BUS Service]
+Name=io.github.carlodevil.UH7000.Control1
+Exec=/usr/bin/uh7000d
+SystemdService=uh7000d.service

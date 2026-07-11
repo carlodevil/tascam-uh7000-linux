@@ -1,0 +1,32 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<node>
+  <interface name="io.github.carlodevil.UH7000.Control1">
+    <method name="GetState">
+      <arg name="state_json" type="s" direction="out"/>
+    </method>
+    <method name="GetDiagnostics">
+      <arg name="diagnostics_json" type="s" direction="out"/>
+    </method>
+    <method name="ApplyMixerPatch">
+      <arg name="patch_json" type="s" direction="in"/>
+      <arg name="mixer_json" type="s" direction="out"/>
+    </method>
+    <method name="Reset">
+      <arg name="applied" type="b" direction="out"/>
+    </method>
+    <method name="ApplyPreset">
+      <arg name="name" type="s" direction="in"/>
+      <arg name="applied" type="b" direction="out"/>
+    </method>
+    <method name="PlaybackPlan">
+      <arg name="plan_json" type="s" direction="out"/>
+    </method>
+    <signal name="ConnectionChanged"><arg name="connected" type="b"/></signal>
+    <signal name="StateChanged"><arg name="state_json" type="s"/></signal>
+    <signal name="LevelMeters"><arg name="levels_json" type="s"/></signal>
+    <signal name="DigitalClockValidityChanged"><arg name="valid" type="b"/></signal>
+    <signal name="PassthroughChanged"><arg name="enabled" type="b"/></signal>
+    <signal name="PanelRequested"/>
+    <signal name="SafetyAbort"><arg name="reason" type="s"/></signal>
+  </interface>
+</node>

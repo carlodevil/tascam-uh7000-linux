@@ -1,0 +1,38 @@
+from __future__ import annotations
+
+import unittest
+
+from uh7000.protocol import (
+    MemoryTransport,
+    REQUEST_SELECTOR_STATUS,
+    REQUEST_STATE_PAGE,
+    StatePage,
+    read_selector_status,
+    read_state_page,
+)
+
+
+class ProtocolTests(unittest.TestCase):
+    def test_selector_is_one_byte_read(self) -> None:
+        transport = MemoryTransport({(REQUEST_SELECTOR_STATUS, 0, 0, 1): b"\x02"})
+        self.assertEqual(2, read_selector_status(transport))
+        self.assertEqual((REQUEST_SELECTOR_STATUS, 0, 0, 1, 1000), transport.requests[0])
+
+    def test_only_verified_pages_can_be_read(self) -> None:
+        transport = MemoryTransport({})
+        with self.assertRaises(ValueError):
+            read_state_page(transport, 0x0002)
+
+    def test_state_page_classification(self) -> None:
+        self.assertTrue(StatePage(0x007C, bytes([0xFF]) * 512).is_all_ff)
+        self.assertTrue(StatePage(0x007C, bytes(512)).is_all_zero)
+
+    def test_verified_page_read(self) -> None:
+        data = bytes(range(256)) * 2
+        transport = MemoryTransport({(REQUEST_STATE_PAGE, 0, 0x1F00, 512): data})
+        page = read_state_page(transport, 0x1F00)
+        self.assertEqual(data, page.payload)
+
+
+if __name__ == "__main__":
+    unittest.main()

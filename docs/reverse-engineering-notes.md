@@ -1,5 +1,13 @@
 # Reverse Engineering Notes
 
+> **Legacy evidence notice (0.2):** the original output-to-input tests were run
+> while passthrough was active, forming a feedback loop. Statements below that
+> attribute clipping, steady noise, or recovery to device/driver failure are not
+> production conclusions. Requests `0x42`, `0x4d`, and `0x55` writes remain
+> research-only until they are re-captured with all hardware and software
+> monitoring paths isolated. Confirmed configuration-2 descriptors, explicit
+> feedback observations, read-only requests, and offline decoders remain useful.
+
 These notes summarize the static inspection used to build the first Linux
 support package.
 
