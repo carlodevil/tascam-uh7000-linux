@@ -11,7 +11,7 @@ mkdir -p "$OUT_DIR"
 dpkg-buildpackage -us -uc -b
 
 found=0
-for artifact in "$ROOT_DIR"/../${PACKAGE}_*.deb; do
+for artifact in "$ROOT_DIR"/../"${PACKAGE}"_*.deb; do
     [ -f "$artifact" ] || continue
     cp "$artifact" "$OUT_DIR/"
     found=1
