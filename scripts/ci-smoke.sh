@@ -9,6 +9,8 @@ bash -n completions/uh7000ctl
 python3 -m compileall -q src tests tools
 PYTHONPATH=src python3 -m unittest discover -s tests -v
 python3 -m json.tool docs/report-schema.json >/dev/null
+python3 -m json.tool research/windows-control-fixtures.json >/dev/null
+python3 tools/validate_control_fixtures.py
 
 grep -q 'io.github.carlodevil.UH7000.Control1' src/uh7000/service.py
 grep -q '0x85' src/uh7000/safety.py

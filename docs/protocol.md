@@ -53,6 +53,19 @@ The application must fail closed if any step is missing.
 The reproducible Windows evidence and SHA-256 manifest are under
 `research/windows-captures/2026-07-12/`.
 
+## Linux wiring baseline
+
+`research/windows-control-fixtures.json` is the machine-readable handoff for
+Linux implementation. It provides exact setup values, state images, changed
+byte offsets and classifications. Candidate `0x4d` images must be treated as
+whole-state compare-and-swap transactions: readback is not available, so the
+Linux agent must first capture a known state, apply only with outputs
+disconnected, restore the paired image, and confirm the visible hardware state.
+
+Mixer Mode is a multi-request transaction (`0x54`, selector `0x49`, five
+request-`0x41` writes, and a final `0x4d` image) coupled to USB reconfiguration.
+Never expose its individual writes as standalone commands.
+
 ## D-Bus interface
 
 The per-user service owns the versioned name

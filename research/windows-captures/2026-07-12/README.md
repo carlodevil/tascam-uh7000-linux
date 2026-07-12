@@ -36,3 +36,9 @@ requests remain research-only.
 The production protocol contains an atomic `0x49` primitive with readback and
 rollback, but it is not exposed through D-Bus, CLI or UI until an
 output-disconnected Linux hardware test passes.
+
+Normalized Linux-ready fixtures are in
+`research/windows-control-fixtures.json`. Each control is explicitly marked
+as verified, candidate, or incomplete. `tools/validate_control_fixtures.py`
+checks image lengths, byte-delta offsets, schema version and the global
+write-disabled safety gate.
