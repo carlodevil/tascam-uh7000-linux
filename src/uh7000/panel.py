@@ -18,7 +18,7 @@ def main() -> int:
         from PySide6.QtGui import QGuiApplication
         from PySide6.QtQml import QQmlApplicationEngine
     except ImportError as exc:
-        raise SystemExit("uh7000-panel requires the PySide6 Qt Quick packages") from exc
+        raise SystemExit(f"uh7000-panel is missing a PySide6 Qt module: {exc}") from exc
 
     class PanelBackend(QObject):
         changed = Signal()
