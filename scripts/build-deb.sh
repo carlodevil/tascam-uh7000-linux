@@ -9,6 +9,7 @@ cd "$ROOT_DIR"
 rm -rf "$OUT_DIR"
 mkdir -p "$OUT_DIR"
 dpkg-buildpackage -us -uc -b
+mkdir -p "$OUT_DIR"
 
 found=0
 for artifact in "$ROOT_DIR"/../"${PACKAGE}"_*.deb; do
