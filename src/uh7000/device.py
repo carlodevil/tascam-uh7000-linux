@@ -7,7 +7,7 @@ from pathlib import Path
 from typing import Iterable
 
 from .models import DeviceStatus
-from .protocol import PID, REQUEST_TYPE_VENDOR_IN, VID
+from .protocol import PID, REQUEST_TYPE_VENDOR_IN, REQUEST_TYPE_VENDOR_OUT, VID
 
 SYSFS_USB_ROOT = Path("/sys/bus/usb/devices")
 
@@ -82,7 +82,7 @@ def device_status(root: Path = SYSFS_USB_ROOT) -> DeviceStatus:
 
 
 class PyUsbTransport:
-    """PyUSB transport restricted to verified vendor reads."""
+    """PyUSB transport used only by verified protocol primitives."""
 
     def __init__(self) -> None:
         try:
@@ -111,6 +111,25 @@ class PyUsbTransport:
             timeout=timeout_ms,
         )
         return bytes(payload)
+
+    def control_write(
+        self,
+        request: int,
+        value: int,
+        index: int,
+        payload: bytes = b"",
+        timeout_ms: int = 1000,
+    ) -> int:
+        return int(
+            self._device.ctrl_transfer(
+                REQUEST_TYPE_VENDOR_OUT,
+                request,
+                value,
+                index,
+                payload,
+                timeout=timeout_ms,
+            )
+        )
 
 
 def select_configuration_two(path: Path) -> None:
