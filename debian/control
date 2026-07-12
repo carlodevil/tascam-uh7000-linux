@@ -23,6 +23,7 @@ Depends:
  kmod,
  python3-dbus-next,
  python3-pyside6.qtdbus,
+ python3-pyside6.qtqml,
  python3-pyside6.qtquick,
  python3-usb,
  qml6-module-qtquick,
