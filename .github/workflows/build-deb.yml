@@ -25,10 +25,13 @@ jobs:
           apt-get update
           apt-get install -y --no-install-recommends \
             bash-completion devscripts dpkg-dev fonts-dejavu-core lintian \
-            pybuild-plugin-pyproject python3-all python3-dbus-next python3-pytest python3-ruff \
+            pybuild-plugin-pyproject python3-all python3-dbus-next python3-pytest python3-venv \
             python3-pyside6.qtdbus python3-pyside6.qtquick python3-setuptools python3-usb \
             qml6-module-qtquick qml6-module-qtquick-controls \
             qml6-module-qtquick-layouts shellcheck xvfb
+          python3 -m venv /opt/uh7000-ci
+          /opt/uh7000-ci/bin/pip install --no-cache-dir ruff==0.11.13
+          echo /opt/uh7000-ci/bin >> "$GITHUB_PATH"
           apt-get build-dep -y ./
       - name: Static and unit tests
         run: |
