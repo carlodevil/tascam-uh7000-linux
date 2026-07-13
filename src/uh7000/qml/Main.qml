@@ -183,6 +183,46 @@ ApplicationWindow {
                         }
                     }
                 }
+                GroupBox {
+                    title: "Analog playback"
+                    Layout.fillWidth: true
+                    GridLayout {
+                        columns: 2
+                        anchors.fill: parent
+                        Label { text: "PipeWire route"; color: window.textMuted }
+                        Label {
+                            text: uh7000.analogPlaybackStatus
+                            color: uh7000.analogPlaybackActive ? window.safe : window.textMain
+                        }
+                        Label {
+                            Layout.columnSpan: 2
+                            Layout.fillWidth: true
+                            wrapMode: Text.WordWrap
+                            text: "Uses the verified 48 kHz stereo configuration-1 stream. Enabling it temporarily switches the hardware out of normal UAC2 mode."
+                            color: window.textMuted
+                        }
+                        Item { Layout.columnSpan: 2; Layout.fillWidth: true; implicitHeight: 1 }
+                        RowLayout {
+                            Layout.columnSpan: 2
+                            spacing: 8
+                            Button {
+                                text: "Enable"
+                                enabled: uh7000.connected && !uh7000.analogPlaybackActive
+                                onClicked: uh7000.enableAnalogPlayback()
+                            }
+                            Button {
+                                text: "Make Default"
+                                enabled: uh7000.connected && !uh7000.analogPlaybackActive
+                                onClicked: uh7000.setAnalogPlaybackDefault()
+                            }
+                            Button {
+                                text: "Disable"
+                                enabled: uh7000.analogPlaybackActive
+                                onClicked: uh7000.disableAnalogPlayback()
+                            }
+                        }
+                    }
+                }
             }
         }
 

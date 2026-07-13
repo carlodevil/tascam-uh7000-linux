@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import json
 import os
+import subprocess
 import sys
 from pathlib import Path
 
@@ -33,6 +34,33 @@ def main() -> int:
                 QDBusConnection.sessionBus(),
             )
             self._state: dict[str, object] = {}
+            self._analog_playback_active = False
+            self._analog_playback_status = "Analog playback inactive"
+            self._refresh_analog_playback_status()
+            self.refresh()
+
+        def _refresh_analog_playback_status(self) -> None:
+            result = subprocess.run(
+                ["uh7000-pipewire", "status"],
+                capture_output=True,
+                check=False,
+                text=True,
+            )
+            self._analog_playback_active = result.returncode == 0
+            output = (result.stdout or result.stderr).strip()
+            self._analog_playback_status = output or "Analog playback unavailable"
+
+        def _set_analog_playback(self, command: str) -> None:
+            result = subprocess.run(
+                ["uh7000-pipewire", command],
+                capture_output=True,
+                check=False,
+                text=True,
+            )
+            output = (result.stdout or result.stderr).strip()
+            self._refresh_analog_playback_status()
+            if result.returncode != 0:
+                self._analog_playback_status = output or "Analog playback command failed"
             self.refresh()
 
         @Slot()
@@ -57,6 +85,18 @@ def main() -> int:
                     pass
             self.refresh()
 
+        @Slot()
+        def enableAnalogPlayback(self) -> None:
+            self._set_analog_playback("enable")
+
+        @Slot()
+        def setAnalogPlaybackDefault(self) -> None:
+            self._set_analog_playback("set-default")
+
+        @Slot()
+        def disableAnalogPlayback(self) -> None:
+            self._set_analog_playback("disable")
+
         @Property(bool, notify=changed)
         def connected(self) -> bool:
             return bool(self._state.get("device", {}).get("connected", False))  # type: ignore[union-attr]
@@ -68,6 +108,14 @@ def main() -> int:
         @Property(bool, constant=True)
         def hardwareControlsVerified(self) -> bool:
             return False
+
+        @Property(bool, notify=changed)
+        def analogPlaybackActive(self) -> bool:
+            return self._analog_playback_active
+
+        @Property(str, notify=changed)
+        def analogPlaybackStatus(self) -> str:
+            return self._analog_playback_status
 
         @Property(str, notify=changed)
         def clockSource(self) -> str:
