@@ -29,7 +29,7 @@ FUNCTIONS = {
     "uh7000": {
         "address": "0xf106cce0",
         "selection": "ISO OUT ENCODER PROD_TEAC_UH7000 branch when descriptor bit 0x40 is set",
-        "description": "pack source slots 0,1, skip 2,3, then pack 4,5 for a 4-channel endpoint frame",
+        "description": "pack source lanes 0,1 and skip lanes 2,3 from each internal 4-channel frame",
     },
 }
 
@@ -72,9 +72,9 @@ def encode_frame(mode: str, source_slots: list[int]) -> bytes:
             raise ValueError("swap mode needs at least 4 source slots")
         selected = [source[1], source[0], source[3], source[2]]
     elif mode == "uh7000":
-        if len(source) < 6:
-            raise ValueError("uh7000 mode needs at least 6 source slots")
-        selected = [source[0], source[1], source[4], source[5]]
+        if len(source) < 4:
+            raise ValueError("uh7000 mode needs at least 4 source slots")
+        selected = source[:2]
     else:
         raise ValueError(f"unknown mode {mode}")
     return b"".join(s24le_from_i32_left(sample) for sample in selected)
@@ -94,7 +94,7 @@ def tone_slots(frame: int, rate: int, frequency: float, dbfs: int, slot_count: i
 
 
 def write_tone(path: Path, mode: str, frames: int, rate: int, frequency: float, dbfs: int) -> None:
-    slot_count = 8 if mode == "uh7000" else 4
+    slot_count = 4
     with path.open("wb") as handle:
         for frame in range(frames):
             handle.write(encode_frame(mode, tone_slots(frame, rate, frequency, dbfs, slot_count)))
@@ -123,14 +123,14 @@ def main() -> None:
         "mode": args.mode,
         "function": FUNCTIONS[args.mode],
         "source_slots_24bit": [f"0x{value & 0xffffff:06x}" for value in args.slots],
-        "endpoint_channels": 4,
+        "endpoint_channels": 2 if args.mode == "uh7000" else 4,
         "endpoint_format": "S24_3LE",
         "encoded_frame_hex": frame.hex(),
         "encoded_frame_bytes": len(frame),
         "notes": [
             "Windows source samples are modeled as 24-bit values left-aligned in signed 32-bit words.",
-            "The UH-7000 encoder branch selects virtual source slots 0,1,4,5 for one 4-channel endpoint frame.",
-            "A tone present in every ALSA channel should survive channel-order changes, so total silence still points beyond simple channel swapping.",
+            "The UH-7000 encoder branch emits source lanes 0 and 1 from each 4-channel internal frame and discards lanes 2 and 3.",
+            "Windows endpoint captures confirm that configuration 1 is a stereo S24_3LE stream despite the driver's four-lane internal source layout.",
         ],
     }
     if args.tone_raw:

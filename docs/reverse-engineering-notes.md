@@ -293,14 +293,15 @@ Safe local probes found:
   generic encoder `0xf106c850` or the UH-7000-specific encoder `0xf106cce0`
   depending on a descriptor/status bit. The generic encoder packs each 32-bit
   left-aligned source sample into 3 little-endian bytes. The UH-7000 encoder
-  consumes a virtual 8-slot source layout and emits a 4-channel endpoint frame
-  from source slots `0,1,4,5`, skipping slots `2,3` and `6,7`. A second generic
+  consumes a four-lane internal source frame and emits only lanes `0,1` as a
+  stereo S24_3LE endpoint frame, discarding lanes `2,3`. A second generic
   branch at `0xf1021724` can install `0xf106c930`, which packs stereo pairs in
-  swapped order. Because the loopback test plays the same 1 kHz tone on all
-  four ALSA channels, channel order alone should not erase the tone; the more
-  important finding is that Windows does product-specific output preparation in
-  the USB driver while Linux currently relies on the standard class-driver
-  path for configuration `2`.
+  swapped order. The Windows endpoint capture matches this stereo framing but
+  shows that lane 1 is still populated by Windows' internal audio path even
+  for a left-only shared-audio source. The important finding is that Windows
+  performs product-specific stream preparation before USB submission, while
+  Linux currently relies on the standard class-driver path for configuration
+  `2`.
 - A Windows baseline capture confirms that the product driver selects vendor
   configuration `1` for the UH-7000 analog stream. Its endpoint `0x02`
   transfers are stereo S24_3LE: 48 frames are 288 bytes, and Windows batches
@@ -308,10 +309,13 @@ Safe local probes found:
   playback terminal is instead declared as a Digital Audio Interface. The
   uninstalled `tools/uh7000_config1_probe.c` mirrors the captured packet
   cadence, is dry-run by default, detaches/re-attaches `snd-usb-audio` around a
-  bounded test, and restores configuration `2`. A local two-second probe
-  completed 2,004 packets and recovered ALSA cleanly. The physical loopback
-  shows broadband output rather than the generated tone, so the probe remains
-  experimental and is not part of the packaged driver.
+  bounded duplex test, and restores configuration `2`. It can also replay a
+  raw stereo endpoint fixture and report direct endpoint-`0x81` capture RMS and
+  1.25 kHz energy. A local two-second six-packet replay of an attenuated,
+  byte-for-byte Windows endpoint fixture completed 2,004 packets and recovered
+  ALSA cleanly, but captured broadband energy at -21.25 dBFS with no returned
+  1.25 kHz tone. The probe remains experimental and is not part of the
+  packaged driver.
 
 The helper call-site table can be regenerated from an objdump-style driver
 disassembly:
