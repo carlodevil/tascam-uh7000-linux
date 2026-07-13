@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import json
 import os
+import shutil
 import subprocess
 import sys
 from pathlib import Path
@@ -34,14 +35,29 @@ def main() -> int:
                 QDBusConnection.sessionBus(),
             )
             self._state: dict[str, object] = {}
+            self._pipewire_command = self._find_pipewire_command()
             self._analog_playback_active = False
             self._analog_playback_status = "Analog playback inactive"
             self._refresh_analog_playback_status()
             self.refresh()
 
+        @staticmethod
+        def _find_pipewire_command() -> str | None:
+            installed = shutil.which("uh7000-pipewire")
+            if installed:
+                return installed
+            source_helper = Path(__file__).parent.parent / "tascam-uh7000-pipewire"
+            if source_helper.is_file() and os.access(source_helper, os.X_OK):
+                return str(source_helper)
+            return None
+
         def _refresh_analog_playback_status(self) -> None:
+            if self._pipewire_command is None:
+                self._analog_playback_active = False
+                self._analog_playback_status = "Analog playback helper unavailable"
+                return
             result = subprocess.run(
-                ["uh7000-pipewire", "status"],
+                [self._pipewire_command, "status"],
                 capture_output=True,
                 check=False,
                 text=True,
@@ -51,8 +67,12 @@ def main() -> int:
             self._analog_playback_status = output or "Analog playback unavailable"
 
         def _set_analog_playback(self, command: str) -> None:
+            if self._pipewire_command is None:
+                self._analog_playback_status = "Analog playback helper unavailable"
+                self.changed.emit()
+                return
             result = subprocess.run(
-                ["uh7000-pipewire", command],
+                [self._pipewire_command, command],
                 capture_output=True,
                 check=False,
                 text=True,

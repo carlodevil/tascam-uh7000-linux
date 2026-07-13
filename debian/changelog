@@ -1,3 +1,15 @@
+tascam-uh7000-linux (0.2.0~beta16) unstable; urgency=medium
+
+  * Run the source PipeWire helper directly in panel development tests.
+
+ -- carlodevil <64757000+carlodevil@users.noreply.github.com>  Mon, 13 Jul 2026 17:42:00 +0200
+
+tascam-uh7000-linux (0.2.0~beta15) unstable; urgency=medium
+
+  * Support source-tree panel tests without an installed PipeWire wrapper.
+
+ -- carlodevil <64757000+carlodevil@users.noreply.github.com>  Mon, 13 Jul 2026 17:35:00 +0200
+
 tascam-uh7000-linux (0.2.0~beta14) unstable; urgency=medium
 
   * Expose the verified PipeWire analog playback route in the control panel.

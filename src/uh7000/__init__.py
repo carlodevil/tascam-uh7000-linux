@@ -16,4 +16,4 @@ __all__ = [
     "SafetyState",
 ]
 
-__version__ = "0.2.0b14"
+__version__ = "0.2.0b16"
