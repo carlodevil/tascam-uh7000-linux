@@ -97,6 +97,13 @@ run. The feedback averaged 47.994379 frames/ms (range 47.977112 to 48.0), and
 the adaptive packet scheduler transmitted 47.994205 frames/ms. This prevents
 the fixed-48-frame drift that would otherwise accumulate in long playback.
 
+The same beta4 validation manually selected configuration 1, confirmed that
+`uh7000ctl` still reported the device, then ran the packaged
+`tascam-uh7000-configure 1-5` helper. It selected configuration 2, registered
+`snd_usb_audio`, restored the UH-7000 ALSA card, and the restarted D-Bus
+service reported configuration 2. This covers a software configuration
+handoff, not a physical USB unplug or power-cycle.
+
 ## Clock-source control
 
 With all physical outputs still disconnected, the persistent control path is:
