@@ -40,9 +40,8 @@
 #define MAX_PACKET_BYTES (MAX_FRAMES_PER_PACKET * CHANNELS * BYTES_PER_SAMPLE)
 #define PACKETS_PER_TRANSFER 6
 #define TRANSFER_BYTES (MAX_PACKET_BYTES * PACKETS_PER_TRANSFER)
-#define CAPTURE_FRAMES_PER_PACKET 48
 #define CAPTURE_PACKETS_PER_TRANSFER 6
-#define CAPTURE_AUDIO_BYTES (CAPTURE_FRAMES_PER_PACKET * CHANNELS * BYTES_PER_SAMPLE)
+#define CAPTURE_MAX_FRAMES_PER_PACKET 49
 #define CAPTURE_PACKET_BYTES 294
 #define CAPTURE_TRANSFER_BYTES (CAPTURE_PACKET_BYTES * CAPTURE_PACKETS_PER_TRANSFER)
 #define PACKETS_PER_SECOND 1000
@@ -234,15 +233,19 @@ static void LIBUSB_CALL capture_complete(struct libusb_transfer *transfer) {
     for (unsigned int packet = 0; packet < CAPTURE_PACKETS_PER_TRANSFER; ++packet) {
         const struct libusb_iso_packet_descriptor *descriptor = &transfer->iso_packet_desc[packet];
         if (descriptor->status != LIBUSB_TRANSFER_COMPLETED ||
-            descriptor->actual_length < CAPTURE_AUDIO_BYTES) {
+            descriptor->actual_length == 0 ||
+            descriptor->actual_length > CAPTURE_PACKET_BYTES ||
+            descriptor->actual_length % (CHANNELS * BYTES_PER_SAMPLE) != 0) {
             fprintf(stderr, "capture packet %u returned status=%d length=%u\n", packet,
                     descriptor->status, descriptor->actual_length);
             capture->failed = 1;
             capture->active = 0;
             return;
         }
+        const unsigned int frame_count =
+            descriptor->actual_length / (CHANNELS * BYTES_PER_SAMPLE);
         const unsigned char *data = libusb_get_iso_packet_buffer_simple(transfer, packet);
-        for (unsigned int frame = 0; frame < CAPTURE_FRAMES_PER_PACKET; ++frame) {
+        for (unsigned int frame = 0; frame < frame_count; ++frame) {
             for (unsigned int channel = 0; channel < CHANNELS; ++channel) {
                 const unsigned int offset = (frame * CHANNELS + channel) * BYTES_PER_SAMPLE;
                 const double sample = (double)decode_s24le(data + offset) / 8388608.0;

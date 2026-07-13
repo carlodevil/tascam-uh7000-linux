@@ -1,3 +1,10 @@
+tascam-uh7000-linux (0.2.0~beta17) unstable; urgency=medium
+
+  * Accept aligned variable-length configuration-1 capture packets in duplex
+    diagnostics.
+
+ -- carlodevil <64757000+carlodevil@users.noreply.github.com>  Mon, 13 Jul 2026 18:00:00 +0200
+
 tascam-uh7000-linux (0.2.0~beta16) unstable; urgency=medium
 
   * Run the source PipeWire helper directly in panel development tests.
