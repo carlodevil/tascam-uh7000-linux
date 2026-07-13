@@ -285,8 +285,12 @@ Safe local probes found:
   the standard Windows shared `waveOut` stereo path at -20 dBFS was audible
   through a left speaker. Its captured endpoint stream again showed repeated
   adjacent samples and a strongest component near 625 Hz. Analog output is
-  therefore confirmed under Windows; the failed same-device return was not
-  evidence of a silent output. Raw evidence and decoded metrics are under
+  therefore confirmed under Windows. A final guarded shared-`waveOut`
+  loopback from Left Line Output to Analog Input 2 returned the intended
+  1,250 Hz tone at -26.37 dBFS from a -60 dBFS source, peaked at -20.12 dBFS,
+  and had zero clipped samples. The failed earlier return used the wrong
+  low-level playback path and was not evidence of a silent output. Raw evidence
+  and decoded metrics are under
   `research/windows-captures/2026-07-13/startup-playback/`.
 
 The helper call-site table can be regenerated from an objdump-style driver

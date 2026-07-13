@@ -30,3 +30,5 @@ reconnect, Windows configuration-1 initialization, a guarded channel-1-only
 tone, endpoint `0x02` isochronous traffic, and the Analog Input 2 return.
 It also includes a separate USBPcap trace of an operator-confirmed audible
 Windows shared `waveOut` stereo run.
+The final verified loopback artifacts show a left-only -60 dBFS shared-audio
+source returning on Analog Input 2 at -26.37 dBFS with zero clipping.

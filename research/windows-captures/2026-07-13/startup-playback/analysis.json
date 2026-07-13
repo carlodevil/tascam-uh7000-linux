@@ -39,5 +39,18 @@
     "final_usb_payload_rms_dbfs": -25.53,
     "adjacent_samples_repeated": true
   },
-  "conclusion": "Windows configuration-1 analog output is audible through the shared audio path. The same-device return capture did not expose a deterministic tone, while USB payloads show a 625 Hz adjacent-sample transformation of the 1250 Hz source."
+  "verified_analog_loopback": {
+    "path": "Windows shared waveOut stereo to Left Line Output to Analog Input 2",
+    "source_channel": 1,
+    "source_frequency_hz": 1250,
+    "source_ramp_dbfs": [-90, -60],
+    "capture_channel": 2,
+    "capture_peak_dbfs": -20.115845697125778,
+    "capture_rms_dbfs": -27.147838819241763,
+    "capture_1250hz_peak_dbfs": -26.3742565676853,
+    "clips": 0,
+    "abort_reason": null,
+    "mixer_channel_2_changed": false
+  },
+  "conclusion": "Windows configuration-1 analog output is verified. A left-only 1250 Hz shared-audio source returned on Analog Input 2 without clipping. The USB endpoint trace still shows the product-specific 625 Hz adjacent-sample representation that Linux must model or bypass."
 }

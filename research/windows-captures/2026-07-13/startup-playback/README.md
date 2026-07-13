@@ -70,6 +70,19 @@ USB payload block measured about -25.53 dBFS RMS. This confirms analog output
 operation under the Windows shared audio path while preserving the exact
 configuration-1 stream that Linux must model or bypass.
 
+## Verified analog loopback
+
+The speaker was removed and Left Line Output was connected to Analog Input 2
+again. The known-working Windows shared `waveOut` path played a left-only
+1,250 Hz ramp from -90 to -60 dBFS while the four-channel WDM-KS input was
+opened first. Mixer channel 2 was not changed.
+
+Input 2 returned the intended 1,250 Hz component at `-26.37 dBFS`; peak was
+`-20.12 dBFS`, with zero clipped samples and no safety abort. Input lanes 1, 3,
+and 4 remained at the noise floor or digital silence. This is the definitive
+Windows analog-output mapping: left shared-audio output reaches Analog Input 2
+through the physical loop.
+
 `startup-playback-artifacts.tar.gz` contains the unmodified packet capture,
 the generated 24-bit source WAV, the recorded 24-bit return WAV, and the
 guarded-run JSON report.
@@ -83,4 +96,10 @@ sha256: 0f6322af48235e82cb63c50e9721d99a3eee8c640b545a9ed4be986f4b29c9f9
 working-waveout-artifacts.tar.gz
 size:   7210572 bytes
 sha256: b9ea9fe194820537441464e7c4fdae553d4fbafe8f54321703f8d66259d3b9a7
+```
+
+```text
+verified-loopback-artifacts.tar.gz
+size:   3504283 bytes
+sha256: 8b11ab7bf41637810ad68ed7985ff66ce92283229bcd224c930af7135854a26e
 ```
