@@ -86,6 +86,12 @@ Use `uh7000-pipewire set-default` only after the enable/disable sequence is
 clean. Capture the output of `systemctl --user status uh7000-stream.service`
 and confirm configuration 2 plus `uh7000d` recovery after disable.
 
+On 2026-07-13, beta3 completed a 60-second PipeWire-Pulse stream at 48 kHz
+stereo while the control service was queried at 20, 40, and 60 seconds. Every
+checkpoint reported configuration 1; the stream then stopped inactive without
+failure and the device returned to configuration 2. This is a bounded handoff
+check, not the required 30-minute or eight-hour endurance evidence.
+
 ## Clock-source control
 
 With all physical outputs still disconnected, the persistent control path is:
