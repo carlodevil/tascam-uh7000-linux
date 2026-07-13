@@ -143,3 +143,10 @@ The captured `0x4d`, `0x42`, `0x54` and `0x55` transactions remain
 research-only because they do not provide device readback. Request `0x49`
 clock-source transitions have symmetric readback and are eligible for the
 separate output-disconnected Linux validation gate.
+
+The follow-up under
+`research/windows-captures/2026-07-13/direct-monitor-readback/` additionally
+records a physical reconnect. It proves that the Windows driver reasserts the
+MON MIX Computer/off endpoint with request `0x54`, value `0x7f60`, index
+`0x012c`; it does not obtain a hardware readback. This is a guarded force-off
+candidate, not evidence that the device can report direct-monitor state.

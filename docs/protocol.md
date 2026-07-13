@@ -72,6 +72,17 @@ only. Direct-monitor state is therefore unknown after any reconnect and must
 remain a hard playback gate; do not infer an off state from a captured `0x4d`
 image or a panel default.
 
+A follow-up physical reconnect capture established the Windows policy without
+claiming readback. The global MON MIX Computer/off endpoint is request `0x54`,
+value `0x7f60`, index `0x012c`. On USB reconnect the Windows driver actively
+reissues that exact write before restoring its mixer and DSP images; merely
+closing and reopening the panel performs no monitor USB transaction and shows
+host-cached state. Linux may investigate this only as a guarded
+`force-direct-monitor-off` primitive. Until independent physical validation is
+accepted, its state is `forced_off_unverified`, not `readback_off`, and the
+playback gate remains closed. Reproducible evidence is in
+`research/windows-captures/2026-07-13/direct-monitor-readback/`.
+
 ## Linux wiring baseline
 
 `research/windows-control-fixtures.json` is the machine-readable handoff for
