@@ -46,9 +46,7 @@ class CliTests(unittest.TestCase):
         self.assertFalse(payload["executed"])
 
     def test_clock_source_set_is_dry_run_without_execute(self) -> None:
-        code, payload = self.invoke(
-            "--json", "clock-source", "internal", "--outputs-disconnected"
-        )
+        code, payload = self.invoke("--json", "clock-source", "internal", "--outputs-disconnected")
         self.assertEqual(0, code)
         self.assertTrue(payload["dry_run"])
         self.assertEqual("internal", payload["clock_source"])

@@ -50,9 +50,7 @@ async def run_service() -> None:
             return payload
 
         @method()
-        def SetClockSource(
-            self, source: "s", outputs_disconnected: "b"
-        ) -> "s":  # type: ignore[valid-type]
+        def SetClockSource(self, source: "s", outputs_disconnected: "b") -> "s":  # type: ignore[valid-type]
             try:
                 state = controller.set_clock_source(
                     source, outputs_disconnected=outputs_disconnected

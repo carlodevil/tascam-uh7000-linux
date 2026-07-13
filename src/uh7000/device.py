@@ -132,9 +132,7 @@ class PyUsbTransport:
             raise RuntimeError("UH-7000 vendor status interface is claimed by a kernel driver")
         usb.util.claim_interface(self._device, VENDOR_STATUS_INTERFACE)
         try:
-            payload = bytes(
-                self._device.read(VENDOR_STATUS_ENDPOINT, 512, timeout=timeout_ms)
-            )
+            payload = bytes(self._device.read(VENDOR_STATUS_ENDPOINT, 512, timeout=timeout_ms))
         finally:
             usb.util.release_interface(self._device, VENDOR_STATUS_INTERFACE)
         return parse_vendor_status_packets(payload)

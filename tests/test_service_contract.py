@@ -25,9 +25,7 @@ class ServiceContractTests(unittest.TestCase):
             controller.apply_preset("adcdac")
 
     def test_clock_source_requires_confirmation_and_updates_state(self) -> None:
-        transport = MemoryTransport(
-            {(REQUEST_SELECTOR_STATUS, 0, 0, 1): [b"\x02", b"\x00"]}
-        )
+        transport = MemoryTransport({(REQUEST_SELECTOR_STATUS, 0, 0, 1): [b"\x02", b"\x00"]})
         controller = Controller(transport_factory=lambda: transport)
         with patch(
             "uh7000.controller.device_status",

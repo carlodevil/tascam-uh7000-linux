@@ -44,8 +44,11 @@ jobs:
           scripts/ci-smoke.sh
       - name: Offscreen Qt panel smoke test
         run: |
-          PYTHONPATH=src QT_QPA_PLATFORM=offscreen UH7000_PANEL_TEST_EXIT_MS=1000 \
+          PYTHONPATH=src QT_QPA_PLATFORM=offscreen \
+            UH7000_PANEL_TEST_SCREENSHOT=/tmp/uh7000-panel.png \
+            UH7000_PANEL_TEST_EXIT_MS=1000 \
             python3 -m uh7000.panel
+          test -s /tmp/uh7000-panel.png
       - name: Build Debian package
         run: scripts/build-deb.sh
       - name: Inspect package

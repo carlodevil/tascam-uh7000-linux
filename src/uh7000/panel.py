@@ -104,7 +104,11 @@ def main() -> int:
     timer.start()
     screenshot_path = os.environ.get("UH7000_PANEL_TEST_SCREENSHOT")
     if screenshot_path:
-        def capture() -> None:
+
+        def capture(
+            engine: QQmlApplicationEngine = engine,
+            screenshot_path: str = screenshot_path,
+        ) -> None:
             root = engine.rootObjects()[0]
             root.screen().grabWindow(root.winId()).save(screenshot_path)
 

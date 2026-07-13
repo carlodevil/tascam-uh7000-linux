@@ -1,3 +1,9 @@
+tascam-uh7000-linux (0.2.0~beta11) unstable; urgency=medium
+
+  * Require a rendered offscreen panel frame in continuous integration.
+
+ -- carlodevil <64757000+carlodevil@users.noreply.github.com>  Mon, 13 Jul 2026 16:50:00 +0200
+
 tascam-uh7000-linux (0.2.0~beta10) unstable; urgency=medium
 
   * Add manual pages for the D-Bus service and Qt control panel.
