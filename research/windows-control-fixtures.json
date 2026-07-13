@@ -1,0 +1,76 @@
+{
+  "schema": "io.github.carlodevil.UH7000.WindowsControlFixtures.v1",
+  "device": {
+    "driver_version": "1.02",
+    "firmware_version": "1.08",
+    "product_id": "0x8048",
+    "sample_rate_hz": 48000,
+    "vendor_id": "0x0644"
+  },
+  "controls": {
+    "clock_source": {
+      "classification": "verified_windows_readback",
+      "request": "0x49",
+      "states": {
+        "automatic": { "value": "0x0002", "readback": "0x02" },
+        "internal": { "value": "0x0000", "readback": "0x00" }
+      },
+      "linux_gate": "output_disconnected_write_readback_rollback"
+    },
+    "computer_1_2_mute": {
+      "classification": "incomplete_single_image",
+      "request": "0x4d",
+      "observed_image": "2f632b372d412d4111600080000000002f632b372d412d41062f0140000000004aab4aab26e326e3400040000000000000000000000000000000000000000000",
+      "reason": "Only one state image was captured; do not infer direction or rollback."
+    },
+    "linked_analog_1_2_mute": {
+      "classification": "candidate_image_pair",
+      "request": "0x4d",
+      "states": {
+        "disabled": "2f632b372d412d4111600080000000002f632b372d412d41062f0140000000004aab4aab26e326e3400040000000000000000000000000000000000000000000",
+        "enabled": "00002b372d412d41116000800000000000002b372d412d41062f0140000000004aab4aab26e326e3400040000000000000000000000000000000000000000000"
+      },
+      "changed_offsets": [0, 1, 16, 17],
+      "notes": "Analog channels were linked in the Windows panel; this is a stereo-linked transition."
+    },
+    "line_output_source": {
+      "classification": "candidate_image_pair",
+      "request": "0x4d",
+      "states": {
+        "analog_1_2": "2f632b372d412d413d000000000000002f632b372d412d410c73b2b9000000004aab4aab26e326e3400040000000000000000000000000002120000000000000",
+        "master_l_r": "2f632b372d412d4100000000000000002f632b372d412d4100000000000000004aab4aab26e326e3400040000000000000000000000000000000000000000000"
+      },
+      "changed_offsets": [8, 24, 25, 26, 27, 56, 57]
+    },
+    "mixer_mode": {
+      "classification": "candidate_transaction_sequence",
+      "notes": "Changes USB configuration and sends 0x54, 0x49, five 0x41 writes, then 0x4d. Validate as a transaction, never as an isolated write.",
+      "states": {
+        "multitrack": {
+          "request_0x54_index": "0x012c",
+          "selector_0x49": "0x0002",
+          "image_0x4d": "2f632b372d412d4124000000000000002f632b372d412d4100000000000000004aab4aab26e326e3400040000000000000000000000000000000000000000000"
+        },
+        "stereo_mix": {
+          "request_0x54_index": "0x016c",
+          "selector_0x49": "0x0012",
+          "image_0x4d": "2f632b372d412d4101000000000000002f632b372d412d4100000000000000004aab4aab26e326e340004000000000002c39000000002c392000000000000000"
+        }
+      },
+      "shared_request_0x54_value": "0x25b7",
+      "shared_request_0x41_writes": [
+        ["0x0d04", "0x0101"],
+        ["0x0e00", "0x0101"],
+        ["0x0f00", "0x0101"],
+        ["0x1002", "0x0101"],
+        ["0x110b", "0x0101"]
+      ]
+    }
+  },
+  "global_rules": {
+    "image_length_bytes": 64,
+    "request_0x4d_has_readback": false,
+    "request_0x54_has_readback": false,
+    "writes_enabled": false
+  }
+}

@@ -3,6 +3,7 @@ from __future__ import annotations
 import unittest
 
 from uh7000.protocol import (
+    ClockSource,
     MemoryTransport,
     REQUEST_SELECTOR_STATUS,
     REQUEST_STATE_PAGE,
@@ -10,6 +11,7 @@ from uh7000.protocol import (
     parse_vendor_status_packets,
     read_selector_status,
     read_state_page,
+    set_clock_source,
 )
 
 
@@ -42,6 +44,28 @@ class ProtocolTests(unittest.TestCase):
             parse_vendor_status_packets(b"\x0b\xb0\x6b")
         with self.assertRaises(ValueError):
             parse_vendor_status_packets(b"\x00\x00\x6b\x00")
+
+    def test_clock_source_write_requires_matching_readback(self) -> None:
+        transport = MemoryTransport({(REQUEST_SELECTOR_STATUS, 0, 0, 1): [b"\x02", b"\x00"]})
+        self.assertEqual(ClockSource.INTERNAL, set_clock_source(transport, ClockSource.INTERNAL))
+        self.assertEqual((REQUEST_SELECTOR_STATUS, 0, 0, b"", 1000), transport.writes[0])
+
+    def test_clock_source_write_rolls_back_on_mismatch(self) -> None:
+        transport = MemoryTransport(
+            {(REQUEST_SELECTOR_STATUS, 0, 0, 1): [b"\x02", b"\x07", b"\x02"]}
+        )
+        with self.assertRaisesRegex(IOError, "previous state restored"):
+            set_clock_source(transport, ClockSource.INTERNAL)
+        self.assertEqual([0, 2], [write[1] for write in transport.writes])
+
+    def test_clock_source_write_rolls_back_after_write_error(self) -> None:
+        transport = MemoryTransport(
+            {(REQUEST_SELECTOR_STATUS, 0, 0, 1): [b"\x02", b"\x02"]},
+            write_results=[OSError("usb timeout"), 0],
+        )
+        with self.assertRaisesRegex(IOError, "previous state restored"):
+            set_clock_source(transport, ClockSource.INTERNAL)
+        self.assertEqual([0, 2], [write[1] for write in transport.writes])
 
 
 if __name__ == "__main__":

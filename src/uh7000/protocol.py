@@ -1,4 +1,4 @@
-"""Verified, read-only portions of the UH-7000 vendor protocol.
+"""Verified portions of the UH-7000 vendor protocol.
 
 Write requests discovered in the legacy research are intentionally absent from
 this production module.  A request is promoted here only after isolated capture,
@@ -8,11 +8,13 @@ readback and recovery tests establish its semantics.
 from __future__ import annotations
 
 from dataclasses import dataclass
+from enum import IntEnum
 from typing import Protocol
 
 VID = 0x0644
 PID = 0x8048
 REQUEST_TYPE_VENDOR_IN = 0xC0
+REQUEST_TYPE_VENDOR_OUT = 0x40
 REQUEST_SELECTOR_STATUS = 0x49
 REQUEST_STATE_PAGE = 0x55
 STATE_PAGE_SIZE = 512
@@ -30,6 +32,22 @@ class ControlTransport(Protocol):
         length: int,
         timeout_ms: int = 1000,
     ) -> bytes: ...
+
+    def control_write(
+        self,
+        request: int,
+        value: int,
+        index: int,
+        payload: bytes = b"",
+        timeout_ms: int = 1000,
+    ) -> int: ...
+
+
+class ClockSource(IntEnum):
+    """Values verified by isolated Windows captures on firmware 1.08."""
+
+    INTERNAL = 0x00
+    AUTOMATIC = 0x02
 
 
 @dataclass(frozen=True, slots=True)
@@ -81,6 +99,42 @@ def read_selector_status(transport: ControlTransport) -> int:
     return payload[0]
 
 
+def set_clock_source(transport: ControlTransport, source: ClockSource) -> ClockSource:
+    """Apply request 0x49 atomically and roll back on failed readback.
+
+    This primitive is deliberately not exposed by the CLI or D-Bus service until
+    the output-disconnected Linux hardware test in the release checklist passes.
+    """
+    previous = ClockSource(read_selector_status(transport))
+    if previous == source:
+        return previous
+    try:
+        written = transport.control_write(REQUEST_SELECTOR_STATUS, int(source), 0)
+        if written != 0:
+            raise IOError(f"clock-source write returned {written}, expected 0")
+        observed = read_selector_status(transport)
+        if observed == int(source):
+            return source
+        failure = f"requested=0x{int(source):02x}, observed=0x{observed:02x}"
+    except Exception as exc:
+        failure = f"requested=0x{int(source):02x}, transaction error={exc}"
+
+    try:
+        transport.control_write(REQUEST_SELECTOR_STATUS, int(previous), 0)
+        rolled_back = read_selector_status(transport)
+    except Exception as exc:
+        raise IOError(
+            "clock-source transaction failed and rollback could not be verified: "
+            f"{failure}, rollback error={exc}"
+        ) from exc
+    if rolled_back != int(previous):
+        raise IOError(
+            "clock-source transaction failed and rollback could not be verified: "
+            f"{failure}, rollback=0x{rolled_back:02x}"
+        )
+    raise IOError(f"clock-source transaction failed; previous state restored: {failure}")
+
+
 def read_state_page(transport: ControlTransport, index: int) -> StatePage:
     if index not in VERIFIED_STATE_PAGES:
         raise ValueError(f"state page 0x{index:04x} is not in the verified read-only set")
@@ -105,9 +159,15 @@ def parse_firmware_hint(page: StatePage) -> str | None:
 class MemoryTransport:
     """Deterministic transport used by tests and offline protocol fixtures."""
 
-    def __init__(self, responses: dict[tuple[int, int, int, int], bytes]):
+    def __init__(
+        self,
+        responses: dict[tuple[int, int, int, int], bytes | list[bytes]],
+        write_results: list[int | Exception] | None = None,
+    ):
         self.responses = responses
+        self.write_results = list(write_results or [])
         self.requests: list[tuple[int, int, int, int, int]] = []
+        self.writes: list[tuple[int, int, int, bytes, int]] = []
 
     def control_read(
         self,
@@ -121,4 +181,25 @@ class MemoryTransport:
         key = (request, value, index, length)
         if key not in self.responses:
             raise IOError(f"no fixture for request {key!r}")
-        return self.responses[key]
+        response = self.responses[key]
+        if isinstance(response, list):
+            if not response:
+                raise IOError(f"fixture responses exhausted for request {key!r}")
+            return response.pop(0)
+        return response
+
+    def control_write(
+        self,
+        request: int,
+        value: int,
+        index: int,
+        payload: bytes = b"",
+        timeout_ms: int = 1000,
+    ) -> int:
+        self.writes.append((request, value, index, payload, timeout_ms))
+        if self.write_results:
+            result = self.write_results.pop(0)
+            if isinstance(result, Exception):
+                raise result
+            return result
+        return len(payload)

@@ -62,3 +62,16 @@ The Linux implementation will compare each segment with the baseline, identify
 the bounded USB request and payload delta, replay it only with outputs
 disconnected, read back the relevant state, and verify rollback after a device
 reconnect. A control remains disabled unless all of those checks pass.
+
+## Captured Baselines
+
+The `research/windows-captures/2026-07-12/` and
+`research/windows-captures/2026-07-13/` directories contain completed Windows
+sessions that follow this procedure. The later session covers 37 isolated
+captures on driver 1.02 and firmware 1.08, with no speakers, headphones,
+loopback cabling or playback stream.
+
+The captured `0x4d`, `0x42`, `0x54` and `0x55` transactions remain
+research-only because they do not provide device readback. Request `0x49`
+clock-source transitions have symmetric readback and are eligible for the
+separate output-disconnected Linux validation gate.

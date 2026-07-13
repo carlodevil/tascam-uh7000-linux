@@ -10,6 +10,8 @@
 - [ ] D-Bus activation and user-service restart tests
 - [ ] offscreen Qt Interface/Mixer/Effects rendering test
 - [ ] no research-only `0x42`, `0x4d`, or `0x55` write command in the package
+- [x] isolated Windows captures recorded for clock, mode, monitor and routing controls
+- [x] request `0x49` clock values have symmetric Windows readback and rollback evidence
 
 ## Native device
 
@@ -23,6 +25,7 @@
 - [ ] eight-hour duplex runs at 48, 96 and 192 kHz
 - [ ] suspend/resume, invalid digital clock and unplug recovery pass
 - [ ] every enabled mixer/effect control has capture, readback and rollback evidence
+- [ ] request `0x49` atomic clock change passes an output-disconnected Linux test
 
 ## Publication
 

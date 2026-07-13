@@ -10,6 +10,7 @@ from .models import DeviceStatus
 from .protocol import (
     PID,
     REQUEST_TYPE_VENDOR_IN,
+    REQUEST_TYPE_VENDOR_OUT,
     VENDOR_STATUS_ENDPOINT,
     VENDOR_STATUS_INTERFACE,
     VID,
@@ -90,7 +91,7 @@ def device_status(root: Path = SYSFS_USB_ROOT) -> DeviceStatus:
 
 
 class PyUsbTransport:
-    """PyUSB transport restricted to verified vendor reads."""
+    """PyUSB transport used only by verified protocol primitives."""
 
     def __init__(self) -> None:
         try:
@@ -137,6 +138,25 @@ class PyUsbTransport:
         finally:
             usb.util.release_interface(self._device, VENDOR_STATUS_INTERFACE)
         return parse_vendor_status_packets(payload)
+
+    def control_write(
+        self,
+        request: int,
+        value: int,
+        index: int,
+        payload: bytes = b"",
+        timeout_ms: int = 1000,
+    ) -> int:
+        return int(
+            self._device.ctrl_transfer(
+                REQUEST_TYPE_VENDOR_OUT,
+                request,
+                value,
+                index,
+                payload,
+                timeout=timeout_ms,
+            )
+        )
 
 
 def select_configuration_two(path: Path) -> None:
