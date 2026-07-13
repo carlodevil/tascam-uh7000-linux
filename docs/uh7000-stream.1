@@ -18,6 +18,9 @@ SIGINT, or SIGTERM it restores USB configuration 2 so the stock
 .B snd_usb_audio
 capture/control topology returns.
 
+The stream reads endpoint 0x85 feedback and varies packet frame counts to
+follow the device clock rather than assuming exactly 48 frames per millisecond.
+
 Without a source option the command generates a bounded 1250 Hz tone at
 -30 dBFS. This is intended for disconnected-output diagnostics only.
 .SH OPTIONS

@@ -92,6 +92,11 @@ checkpoint reported configuration 1; the stream then stopped inactive without
 failure and the device returned to configuration 2. This is a bounded handoff
 check, not the required 30-minute or eight-hour endurance evidence.
 
+Beta4 additionally read endpoint `0x85` during a five-second configuration-1
+run. The feedback averaged 47.994379 frames/ms (range 47.977112 to 48.0), and
+the adaptive packet scheduler transmitted 47.994205 frames/ms. This prevents
+the fixed-48-frame drift that would otherwise accumulate in long playback.
+
 ## Clock-source control
 
 With all physical outputs still disconnected, the persistent control path is:

@@ -27,16 +27,19 @@
 #define STREAM_INTERFACE 1
 #define STREAM_ALTSETTING 1
 #define STREAM_ENDPOINT 0x02
+#define FEEDBACK_ENDPOINT 0x85
 #define CAPTURE_INTERFACE 2
 #define CAPTURE_ALTSETTING 1
 #define CAPTURE_ENDPOINT 0x81
 #define SAMPLE_RATE 48000
-#define FRAMES_PER_PACKET 48
+#define NOMINAL_FRAMES_PER_PACKET 48
+#define MAX_FRAMES_PER_PACKET 49
 #define CHANNELS 2
 #define BYTES_PER_SAMPLE 3
-#define PACKET_BYTES (FRAMES_PER_PACKET * CHANNELS * BYTES_PER_SAMPLE)
+#define PACKET_BYTES (NOMINAL_FRAMES_PER_PACKET * CHANNELS * BYTES_PER_SAMPLE)
+#define MAX_PACKET_BYTES (MAX_FRAMES_PER_PACKET * CHANNELS * BYTES_PER_SAMPLE)
 #define PACKETS_PER_TRANSFER 6
-#define TRANSFER_BYTES (PACKET_BYTES * PACKETS_PER_TRANSFER)
+#define TRANSFER_BYTES (MAX_PACKET_BYTES * PACKETS_PER_TRANSFER)
 #define CAPTURE_FRAMES_PER_PACKET 48
 #define CAPTURE_PACKETS_PER_TRANSFER 6
 #define CAPTURE_AUDIO_BYTES (CAPTURE_FRAMES_PER_PACKET * CHANNELS * BYTES_PER_SAMPLE)
@@ -52,6 +55,7 @@ static const double metric_frequencies[METRIC_FREQUENCIES] = {625.0, 1250.0};
 struct stream_context {
     struct libusb_transfer *transfer;
     unsigned long packets_sent;
+    unsigned long frames_sent;
     unsigned long packet_limit;
     double phase;
     double phase_step;
@@ -60,9 +64,11 @@ struct stream_context {
     size_t raw_length;
     size_t raw_offset;
     int stdin_mode;
-    unsigned char stdin_buffer[PACKET_BYTES];
+    unsigned char stdin_buffer[MAX_PACKET_BYTES];
     size_t stdin_length;
     int stdin_eof;
+    double feedback_frames_per_packet;
+    double frame_remainder;
     int active;
 };
 
@@ -78,6 +84,18 @@ struct capture_context {
     int active;
 };
 
+struct feedback_context {
+    struct libusb_transfer *transfer;
+    unsigned long packets_received;
+    uint32_t last_value;
+    uint32_t minimum_value;
+    uint32_t maximum_value;
+    uint64_t value_sum;
+    int failed;
+    int active;
+    struct stream_context *stream;
+};
+
 struct kernel_driver_state {
     int detached[4];
 };
@@ -89,11 +107,11 @@ static void request_stop(int signal_number) {
     stop_requested = 1;
 }
 
-static void fill_stdin_packet(struct stream_context *stream, unsigned char *data) {
-    while (stream->stdin_length < PACKET_BYTES && !stream->stdin_eof) {
+static void fill_stdin_packet(struct stream_context *stream, unsigned char *data, size_t bytes) {
+    while (stream->stdin_length < bytes && !stream->stdin_eof) {
         const ssize_t bytes_read = read(STDIN_FILENO,
                                         stream->stdin_buffer + stream->stdin_length,
-                                        PACKET_BYTES - stream->stdin_length);
+                                        bytes - stream->stdin_length);
         if (bytes_read > 0) {
             stream->stdin_length += (size_t)bytes_read;
             continue;
@@ -113,21 +131,25 @@ static void fill_stdin_packet(struct stream_context *stream, unsigned char *data
         break;
     }
     memcpy(data, stream->stdin_buffer, stream->stdin_length);
-    memset(data + stream->stdin_length, 0, PACKET_BYTES - stream->stdin_length);
+    memset(data + stream->stdin_length, 0, bytes - stream->stdin_length);
     stream->stdin_length = 0;
 }
 
-static void fill_audio_packet(struct stream_context *stream, unsigned char *data) {
+static void fill_audio_packet(struct stream_context *stream, unsigned char *data,
+                              unsigned int frame_count) {
+    const size_t bytes = frame_count * CHANNELS * BYTES_PER_SAMPLE;
     if (stream->stdin_mode) {
-        fill_stdin_packet(stream, data);
+        fill_stdin_packet(stream, data, bytes);
         return;
     }
     if (stream->raw_data) {
-        memcpy(data, stream->raw_data + stream->raw_offset, PACKET_BYTES);
-        stream->raw_offset = (stream->raw_offset + PACKET_BYTES) % stream->raw_length;
+        for (size_t offset = 0; offset < bytes; offset += BYTES_PER_SAMPLE) {
+            memcpy(data + offset, stream->raw_data + stream->raw_offset, BYTES_PER_SAMPLE);
+            stream->raw_offset = (stream->raw_offset + BYTES_PER_SAMPLE) % stream->raw_length;
+        }
         return;
     }
-    for (unsigned int frame = 0; frame < FRAMES_PER_PACKET; ++frame) {
+    for (unsigned int frame = 0; frame < frame_count; ++frame) {
         const int32_t sample = (int32_t)(0.0316227766 * 8388607.0 * sin(stream->phase));
         stream->phase += stream->phase_step;
         if (stream->phase >= TWO_PI) {
@@ -152,9 +174,23 @@ static double dbfs(double amplitude) {
 }
 
 static void fill_transfer(struct stream_context *stream) {
+    size_t offset = 0;
     for (unsigned int packet = 0; packet < PACKETS_PER_TRANSFER; ++packet) {
-        fill_audio_packet(stream, stream->transfer->buffer + packet * PACKET_BYTES);
+        const double requested_frames = stream->feedback_frames_per_packet + stream->frame_remainder;
+        unsigned int frame_count = (unsigned int)floor(requested_frames);
+        if (frame_count < 1) {
+            frame_count = 1;
+        } else if (frame_count > MAX_FRAMES_PER_PACKET) {
+            frame_count = MAX_FRAMES_PER_PACKET;
+        }
+        stream->frame_remainder = requested_frames - frame_count;
+        const unsigned int bytes = frame_count * CHANNELS * BYTES_PER_SAMPLE;
+        fill_audio_packet(stream, stream->transfer->buffer + offset, frame_count);
+        stream->transfer->iso_packet_desc[packet].length = bytes;
+        stream->frames_sent += frame_count;
+        offset += bytes;
     }
+    stream->transfer->length = (int)offset;
 }
 
 static void LIBUSB_CALL transfer_complete(struct libusb_transfer *transfer) {
@@ -233,6 +269,48 @@ static void LIBUSB_CALL capture_complete(struct libusb_transfer *transfer) {
     }
 }
 
+static void LIBUSB_CALL feedback_complete(struct libusb_transfer *transfer) {
+    struct feedback_context *feedback = transfer->user_data;
+    if (transfer->status != LIBUSB_TRANSFER_COMPLETED) {
+        if (stop_requested && transfer->status == LIBUSB_TRANSFER_CANCELLED) {
+            feedback->active = 0;
+            return;
+        }
+        fprintf(stderr, "feedback transfer failed with status %d\n", transfer->status);
+        feedback->failed = 1;
+        feedback->active = 0;
+        return;
+    }
+    const struct libusb_iso_packet_descriptor *descriptor = &transfer->iso_packet_desc[0];
+    if (descriptor->status != LIBUSB_TRANSFER_COMPLETED || descriptor->actual_length != 3) {
+        fprintf(stderr, "feedback packet returned status=%d length=%u\n",
+                descriptor->status, descriptor->actual_length);
+        feedback->failed = 1;
+        feedback->active = 0;
+        return;
+    }
+    const unsigned char *data = libusb_get_iso_packet_buffer_simple(transfer, 0);
+    feedback->last_value = (uint32_t)data[0] | ((uint32_t)data[1] << 8) |
+                           ((uint32_t)data[2] << 16);
+    if (feedback->packets_received == 0 || feedback->last_value < feedback->minimum_value) {
+        feedback->minimum_value = feedback->last_value;
+    }
+    if (feedback->last_value > feedback->maximum_value) {
+        feedback->maximum_value = feedback->last_value;
+    }
+    feedback->value_sum += feedback->last_value;
+    const double frames_per_packet = (double)feedback->last_value / 16384.0;
+    if (frames_per_packet >= 1.0 && frames_per_packet <= MAX_FRAMES_PER_PACKET) {
+        feedback->stream->feedback_frames_per_packet = frames_per_packet;
+    }
+    ++feedback->packets_received;
+    if (libusb_submit_transfer(transfer) != 0) {
+        fprintf(stderr, "could not resubmit feedback transfer\n");
+        feedback->failed = 1;
+        feedback->active = 0;
+    }
+}
+
 static int load_raw_fixture(const char *path, struct stream_context *stream) {
     FILE *file = fopen(path, "rb");
     if (!file) {
@@ -245,8 +323,9 @@ static int load_raw_fixture(const char *path, struct stream_context *stream) {
         return 1;
     }
     const long length = ftell(file);
-    if (length <= 0 || (size_t)length % PACKET_BYTES != 0) {
-        fprintf(stderr, "raw fixture must be a non-empty multiple of %u bytes\n", PACKET_BYTES);
+    if (length <= 0 || (size_t)length % (CHANNELS * BYTES_PER_SAMPLE) != 0) {
+        fprintf(stderr, "raw fixture must be a non-empty multiple of %u bytes\n",
+                CHANNELS * BYTES_PER_SAMPLE);
         fclose(file);
         return 1;
     }
@@ -373,6 +452,7 @@ int main(int argc, char **argv) {
     libusb_device_handle *handle = NULL;
     struct stream_context stream = {0};
     struct capture_context capture = {0};
+    struct feedback_context feedback = {0};
     struct kernel_driver_state kernel_drivers = {0};
     int claimed = 0;
     int capture_claimed = 0;
@@ -462,6 +542,11 @@ int main(int argc, char **argv) {
         fprintf(stderr, "failed to allocate isochronous transfer\n");
         goto cleanup;
     }
+    feedback.transfer = libusb_alloc_transfer(1);
+    if (!feedback.transfer) {
+        fprintf(stderr, "failed to allocate feedback transfer\n");
+        goto cleanup;
+    }
     if (!output_only) {
         capture.transfer = libusb_alloc_transfer(CAPTURE_PACKETS_PER_TRANSFER);
         if (!capture.transfer) {
@@ -475,6 +560,7 @@ int main(int argc, char **argv) {
         goto cleanup;
     }
     stream.packet_limit = duration_seconds ? duration_seconds * PACKETS_PER_SECOND : 0;
+    stream.feedback_frames_per_packet = NOMINAL_FRAMES_PER_PACKET;
     capture.packet_limit = output_only ? 0 :
         duration_seconds * CAPTURE_PACKETS_PER_SECOND + CAPTURE_PACKETS_PER_TRANSFER;
     stream.phase_step = TWO_PI * 1250.0 / SAMPLE_RATE;
@@ -483,6 +569,23 @@ int main(int argc, char **argv) {
                              transfer_complete, &stream, 1000);
     stream.transfer->flags = LIBUSB_TRANSFER_FREE_BUFFER;
     libusb_set_iso_packet_lengths(stream.transfer, PACKET_BYTES);
+    unsigned char *feedback_buffer = calloc(1, 3);
+    if (!feedback_buffer) {
+        fprintf(stderr, "failed to allocate feedback buffer\n");
+        result = LIBUSB_ERROR_NO_MEM;
+        goto cleanup;
+    }
+    libusb_fill_iso_transfer(feedback.transfer, handle, FEEDBACK_ENDPOINT, feedback_buffer, 3, 1,
+                             feedback_complete, &feedback, 1000);
+    feedback.transfer->flags = LIBUSB_TRANSFER_FREE_BUFFER;
+    libusb_set_iso_packet_lengths(feedback.transfer, 3);
+    feedback.stream = &stream;
+    result = libusb_submit_transfer(feedback.transfer);
+    if (result != 0) {
+        fprintf(stderr, "failed to submit feedback transfer: %s\n", libusb_error_name(result));
+        goto cleanup;
+    }
+    feedback.active = 1;
     if (!output_only) {
         unsigned char *capture_buffer = calloc(1, CAPTURE_TRANSFER_BYTES);
         if (!capture_buffer) {
@@ -523,8 +626,18 @@ int main(int argc, char **argv) {
             stream.failed = 1;
         }
     }
-    printf("configuration-1 stream completed: packets=%lu status=%s\n", stream.packets_sent,
+    printf("configuration-1 stream completed: packets=%lu frames=%lu frames_per_ms=%.6f status=%s\n",
+           stream.packets_sent, stream.frames_sent,
+           stream.packets_sent ? (double)stream.frames_sent / stream.packets_sent : 0.0,
            (stream.failed || capture.failed) ? "failed" : "ok");
+    if (feedback.packets_received) {
+        printf("feedback: packets=%lu raw=0x%06x frames_per_ms=%.6f avg=%.6f range=%.6f..%.6f\n",
+               feedback.packets_received, feedback.last_value,
+               (double)feedback.last_value / 16384.0,
+               (double)feedback.value_sum / feedback.packets_received / 16384.0,
+               (double)feedback.minimum_value / 16384.0,
+               (double)feedback.maximum_value / 16384.0);
+    }
     if (!output_only && capture.frames_received) {
         for (unsigned int channel = 0; channel < CHANNELS; ++channel) {
             const double rms = sqrt(capture.sum_squares[channel] / capture.frames_received);
@@ -540,13 +653,18 @@ int main(int argc, char **argv) {
     }
 
 cleanup:
+    stop_requested = 1;
     if (stream.transfer && stream.active) {
         libusb_cancel_transfer(stream.transfer);
     }
     if (capture.transfer && capture.active) {
         libusb_cancel_transfer(capture.transfer);
     }
-    while ((stream.transfer && stream.active) || (capture.transfer && capture.active)) {
+    if (feedback.transfer && feedback.active) {
+        libusb_cancel_transfer(feedback.transfer);
+    }
+    while ((stream.transfer && stream.active) || (capture.transfer && capture.active) ||
+           (feedback.transfer && feedback.active)) {
         struct timeval timeout = {.tv_sec = 1, .tv_usec = 0};
         const int event_result = libusb_handle_events_timeout_completed(usb, &timeout, NULL);
         if (event_result != 0 && event_result != LIBUSB_ERROR_INTERRUPTED) {
@@ -557,6 +675,9 @@ cleanup:
     free(stream.raw_data);
     if (capture.transfer) {
         libusb_free_transfer(capture.transfer);
+    }
+    if (feedback.transfer) {
+        libusb_free_transfer(feedback.transfer);
     }
     if (stream.transfer) {
         libusb_free_transfer(stream.transfer);
