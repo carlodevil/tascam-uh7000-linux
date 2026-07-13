@@ -86,10 +86,17 @@ the remaining missing piece is not simply opening the PCM stream or sizing USB
 audio packets; it is in the UH-7000 output routing/encoder state that the
 Windows driver and control panel initialize.
 
-Configuration `1` should not be used as a playback fallback. It exposes a
-misleading vendor-specific stream when forced through `snd-usb-audio`, but
-local tests timed out while setting frequency and wedged the USB device until a
-power-cycle/replug.
+Configuration `1` is the Windows driver's analog-stream configuration, but it
+is not a usable ALSA fallback yet. On the local device it exposes a stereo,
+48 kHz, S24_3LE full-duplex stream. A four-second idle capture after restoring
+the known master-route block measured about -80 dBFS RMS. Sending a three-second
+-30 dBFS 1.25 kHz ALSA tone made the output-to-input loopback clip at about
+-11.5 dBFS RMS, while the 1.25 kHz component remained below -81 dBFS. Applying
+the captured Windows computer-playback `0x4d` block in configuration `1` made
+the broadband clipping worse and also did not recover the tone. The block was
+then restored to the captured master-route value and the idle baseline returned.
+This confirms that the remaining requirement is product-specific stream/setup
+state, not merely configuration selection, endpoint cadence, or byte order.
 
 ## Control-Plane Findings
 
@@ -281,9 +288,11 @@ Safe local probes found:
   six packets into 1728-byte isochronous URBs. The UAC2 configuration `2`
   playback terminal is instead declared as a Digital Audio Interface. The
   uninstalled `tools/uh7000_config1_probe.c` mirrors the captured packet
-  cadence, is dry-run by default, and restores configuration `2` after a
-  bounded analog-path test. It remains experimental until a physical loopback
-  verifies analog output and capture.
+  cadence, is dry-run by default, detaches/re-attaches `snd-usb-audio` around a
+  bounded test, and restores configuration `2`. A local two-second probe
+  completed 2,004 packets and recovered ALSA cleanly. The physical loopback
+  shows broadband output rather than the generated tone, so the probe remains
+  experimental and is not part of the packaged driver.
 
 The helper call-site table can be regenerated from an objdump-style driver
 disassembly:

@@ -39,6 +39,10 @@ struct stream_context {
     int failed;
 };
 
+struct kernel_driver_state {
+    int detached[4];
+};
+
 static void fill_audio_packet(struct stream_context *stream, unsigned char *data) {
     for (unsigned int frame = 0; frame < FRAMES_PER_PACKET; ++frame) {
         const int32_t sample = (int32_t)(0.0316227766 * 8388607.0 * sin(stream->phase));
@@ -64,7 +68,7 @@ static void fill_transfer(struct stream_context *stream) {
 static void LIBUSB_CALL transfer_complete(struct libusb_transfer *transfer) {
     struct stream_context *stream = transfer->user_data;
     if (transfer->status != LIBUSB_TRANSFER_COMPLETED) {
-        fprintf(stderr, "isochronous transfer failed: %s\n", libusb_error_name(transfer->status));
+        fprintf(stderr, "isochronous transfer failed with status %d\n", transfer->status);
         stream->failed = 1;
         return;
     }
@@ -86,6 +90,51 @@ static int restore_uac2(libusb_device_handle *handle) {
         return 1;
     }
     return 0;
+}
+
+static int detach_audio_drivers(libusb_device_handle *handle,
+                                struct kernel_driver_state *state,
+                                int remember_for_restore) {
+    for (int interface_number = 0; interface_number < 4; ++interface_number) {
+        const int active = libusb_kernel_driver_active(handle, interface_number);
+        if (active == LIBUSB_ERROR_NOT_FOUND) {
+            continue;
+        }
+        if (active < 0) {
+            fprintf(stderr, "could not inspect kernel driver for interface %d: %s\n",
+                    interface_number, libusb_error_name(active));
+            return active;
+        }
+        if (active == 1) {
+            const int result = libusb_detach_kernel_driver(handle, interface_number);
+            if (result != 0) {
+                fprintf(stderr, "could not detach kernel driver for interface %d: %s\n",
+                        interface_number, libusb_error_name(result));
+                return result;
+            }
+            if (remember_for_restore) {
+                state->detached[interface_number] = 1;
+            }
+        }
+    }
+    return 0;
+}
+
+static int reattach_audio_drivers(libusb_device_handle *handle,
+                                  const struct kernel_driver_state *state) {
+    int failed = 0;
+    for (int interface_number = 0; interface_number < 4; ++interface_number) {
+        if (!state->detached[interface_number]) {
+            continue;
+        }
+        const int result = libusb_attach_kernel_driver(handle, interface_number);
+        if (result != 0 && result != LIBUSB_ERROR_BUSY && result != LIBUSB_ERROR_NOT_FOUND) {
+            fprintf(stderr, "could not reattach kernel driver for interface %d: %s\n",
+                    interface_number, libusb_error_name(result));
+            failed = 1;
+        }
+    }
+    return failed;
 }
 
 int main(int argc, char **argv) {
@@ -114,7 +163,9 @@ int main(int argc, char **argv) {
     libusb_context *usb = NULL;
     libusb_device_handle *handle = NULL;
     struct stream_context stream = {0};
+    struct kernel_driver_state kernel_drivers = {0};
     int claimed = 0;
+    int configuration_changed = 0;
     int result = libusb_init(&usb);
     if (result != 0) {
         fprintf(stderr, "libusb initialization failed: %s\n", libusb_error_name(result));
@@ -126,9 +177,18 @@ int main(int argc, char **argv) {
         libusb_exit(usb);
         return 1;
     }
+    result = detach_audio_drivers(handle, &kernel_drivers, 1);
+    if (result != 0) {
+        goto cleanup;
+    }
     result = libusb_set_configuration(handle, CONFIG_VENDOR);
     if (result != 0) {
         fprintf(stderr, "failed to select vendor configuration 1: %s\n", libusb_error_name(result));
+        goto cleanup;
+    }
+    configuration_changed = 1;
+    result = detach_audio_drivers(handle, &kernel_drivers, 0);
+    if (result != 0) {
         goto cleanup;
     }
     result = libusb_claim_interface(handle, STREAM_INTERFACE);
@@ -143,7 +203,7 @@ int main(int argc, char **argv) {
         goto cleanup;
     }
 
-    stream.transfer = libusb_alloc_transfer(1);
+    stream.transfer = libusb_alloc_transfer(PACKETS_PER_TRANSFER);
     if (!stream.transfer) {
         fprintf(stderr, "failed to allocate isochronous transfer\n");
         goto cleanup;
@@ -184,7 +244,19 @@ cleanup:
     if (claimed) {
         libusb_release_interface(handle, STREAM_INTERFACE);
     }
-    const int restore_failed = restore_uac2(handle);
+    int restore_failed = 0;
+    if (configuration_changed) {
+        const int detach_result = detach_audio_drivers(handle, &kernel_drivers, 0);
+        if (detach_result != 0) {
+            restore_failed = 1;
+        }
+    }
+    if (configuration_changed && restore_failed == 0) {
+        restore_failed = restore_uac2(handle);
+    }
+    if (restore_failed == 0) {
+        restore_failed = reattach_audio_drivers(handle, &kernel_drivers);
+    }
     libusb_close(handle);
     libusb_exit(usb);
     return (result != 0 || stream.failed || restore_failed) ? 1 : 0;
