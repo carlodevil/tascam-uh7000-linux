@@ -49,6 +49,67 @@ Wait at least five seconds after each Apply/Save action before the next
 change. Never use a bulk preset as a substitute for an isolated control
 segment.
 
+## Startup and Analog Playback Capture
+
+This is a separate capture from the isolated-control procedure. Its purpose is
+to recover the vendor configuration-1 initialization and isochronous playback
+stream that the Windows driver uses for the physical analog outputs.
+
+### Hardware and audio setup
+
+1. Disconnect speakers and headphones. Connect only a passive line-level cable
+   from the left Line Output to Analog Input 2. Do not connect a microphone or
+   an AES/EBU source.
+2. Set Analog Input 2 gain to minimum, disable phantom power, and turn the
+   input gain up only enough to observe a clean non-clipping return signal.
+3. Close every application that may use audio. In Windows Sound settings,
+   disable spatial audio, enhancements, and any communications attenuation for
+   the UH-7000 playback device.
+4. In the UH-7000 Mixer Panel, use its normal default route for computer
+   playback to the Main/Line outputs. Do not change any Mixer Panel control
+   after the device is plugged in for this capture.
+
+### Capture sequence
+
+1. Unplug the UH-7000 USB cable and wait ten seconds.
+2. Start USBPcap on the entire USB controller that will receive the interface.
+   Do not use a device filter. Save as `uh7000-startup-playback.pcapng`.
+3. Plug the UH-7000 directly into that controller. Wait 20 seconds for the
+   Windows driver and Mixer Panel to finish initialization.
+4. Open the Mixer Panel, wait ten seconds, and do not make any control change.
+5. In Audacity, select the UH-7000 as both the playback device and the recording
+   device. Set the project rate to 48,000 Hz and the sample format to 24-bit.
+6. Generate a stereo 1,250 Hz sine tone at -30 dBFS for five seconds. Prepend
+   five seconds of digital silence and append five seconds of digital silence.
+   Export this exact test signal as `uh7000-1250hz-minus30dbfs.wav`.
+7. Play the 15-second file once through the UH-7000. At the same time, record
+   the UH-7000 input stream in Audacity. Do not monitor the recording through
+   the interface. Export it as `uh7000-left-output-to-input2.wav`.
+8. Wait ten seconds after playback ends, stop USBPcap, then close Audacity and
+   the Mixer Panel.
+
+### Required operator log
+
+Create `uh7000-startup-playback-log.txt` beside the capture with:
+
+```text
+Windows version:
+UH-7000 driver version:
+UH-7000 firmware version:
+USB controller name:
+USBPcap start time:
+USB plug-in time:
+Mixer Panel open time:
+Tone playback start/end time:
+Input recording start/end time:
+Analog Input 2 gain position:
+Any audible noise, clipping LED, or Windows error:
+```
+
+The important evidence is the traffic from USB plug-in through playback, not
+only the packets while the tone is sounding. Do not trim, merge, filter, or
+open-and-resave the packet capture before it is copied to the Linux project.
+
 ## Deliverables
 
 Store the following together without editing the packet capture:
@@ -57,6 +118,13 @@ Store the following together without editing the packet capture:
 - `uh7000-windows-control-log.txt` with timestamps and each exact UI action
 - a Mixer Panel screenshot before and after every segment
 - firmware version, driver version, Windows version and USB controller name
+
+For the startup-and-playback procedure, also provide these unmodified files:
+
+- `uh7000-startup-playback.pcapng`
+- `uh7000-startup-playback-log.txt`
+- `uh7000-1250hz-minus30dbfs.wav`
+- `uh7000-left-output-to-input2.wav`
 
 The Linux implementation will compare each segment with the baseline, identify
 the bounded USB request and payload delta, replay it only with outputs
