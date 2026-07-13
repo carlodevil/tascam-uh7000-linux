@@ -311,11 +311,14 @@ Safe local probes found:
   cadence, is dry-run by default, detaches/re-attaches `snd-usb-audio` around a
   bounded duplex test, and restores configuration `2`. It can also replay a
   raw stereo endpoint fixture and report direct endpoint-`0x81` capture RMS and
-  1.25 kHz energy. A local two-second six-packet replay of an attenuated,
-  byte-for-byte Windows endpoint fixture completed 2,004 packets and recovered
-  ALSA cleanly, but captured broadband energy at -21.25 dBFS with no returned
-  1.25 kHz tone. The probe remains experimental and is not part of the
-  packaged driver.
+  625 Hz/1.25 kHz energy. A sanitizer-backed local two-second six-packet replay
+  of an attenuated, byte-for-byte Windows endpoint fixture completed 2,004
+  packets, returned the physical left output through Analog Input 2 at -21.37
+  dBFS at 625 Hz, and restored configuration `2` cleanly. This verifies the
+  configuration-1 transport and physical output route, but not the Windows
+  shared-audio encoder: the same Windows fixture produces 625 Hz on Linux where
+  the Windows loopback returns 1.25 kHz. The probe remains experimental and is
+  not part of the packaged driver.
 
 The helper call-site table can be regenerated from an objdump-style driver
 disassembly:

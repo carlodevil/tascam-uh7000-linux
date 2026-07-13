@@ -31,7 +31,17 @@
 #define PACKET_BYTES (FRAMES_PER_PACKET * CHANNELS * BYTES_PER_SAMPLE)
 #define PACKETS_PER_TRANSFER 6
 #define TRANSFER_BYTES (PACKET_BYTES * PACKETS_PER_TRANSFER)
+#define CAPTURE_FRAMES_PER_PACKET 48
+#define CAPTURE_PACKETS_PER_TRANSFER 6
+#define CAPTURE_AUDIO_BYTES (CAPTURE_FRAMES_PER_PACKET * CHANNELS * BYTES_PER_SAMPLE)
+#define CAPTURE_PACKET_BYTES 294
+#define CAPTURE_TRANSFER_BYTES (CAPTURE_PACKET_BYTES * CAPTURE_PACKETS_PER_TRANSFER)
+#define PACKETS_PER_SECOND 1000
+#define CAPTURE_PACKETS_PER_SECOND 1000
+#define METRIC_FREQUENCIES 2
 #define TWO_PI 6.28318530717958647692
+
+static const double metric_frequencies[METRIC_FREQUENCIES] = {625.0, 1250.0};
 
 struct stream_context {
     struct libusb_transfer *transfer;
@@ -43,6 +53,7 @@ struct stream_context {
     unsigned char *raw_data;
     size_t raw_length;
     size_t raw_offset;
+    int active;
 };
 
 struct capture_context {
@@ -51,9 +62,10 @@ struct capture_context {
     unsigned long packet_limit;
     unsigned long frames_received;
     double sum_squares[CHANNELS];
-    double cosine[CHANNELS];
-    double sine[CHANNELS];
+    double cosine[CHANNELS][METRIC_FREQUENCIES];
+    double sine[CHANNELS][METRIC_FREQUENCIES];
     int failed;
+    int active;
 };
 
 struct kernel_driver_state {
@@ -101,16 +113,19 @@ static void LIBUSB_CALL transfer_complete(struct libusb_transfer *transfer) {
     if (transfer->status != LIBUSB_TRANSFER_COMPLETED) {
         fprintf(stderr, "isochronous transfer failed with status %d\n", transfer->status);
         stream->failed = 1;
+        stream->active = 0;
         return;
     }
     stream->packets_sent += PACKETS_PER_TRANSFER;
     if (stream->packets_sent >= stream->packet_limit) {
+        stream->active = 0;
         return;
     }
     fill_transfer(stream);
     if (libusb_submit_transfer(transfer) != 0) {
         fprintf(stderr, "could not resubmit isochronous transfer\n");
         stream->failed = 1;
+        stream->active = 0;
     }
 }
 
@@ -119,36 +134,44 @@ static void LIBUSB_CALL capture_complete(struct libusb_transfer *transfer) {
     if (transfer->status != LIBUSB_TRANSFER_COMPLETED) {
         fprintf(stderr, "capture isochronous transfer failed with status %d\n", transfer->status);
         capture->failed = 1;
+        capture->active = 0;
         return;
     }
-    for (unsigned int packet = 0; packet < PACKETS_PER_TRANSFER; ++packet) {
+    for (unsigned int packet = 0; packet < CAPTURE_PACKETS_PER_TRANSFER; ++packet) {
         const struct libusb_iso_packet_descriptor *descriptor = &transfer->iso_packet_desc[packet];
-        if (descriptor->status != LIBUSB_TRANSFER_COMPLETED || descriptor->actual_length != PACKET_BYTES) {
+        if (descriptor->status != LIBUSB_TRANSFER_COMPLETED ||
+            descriptor->actual_length < CAPTURE_AUDIO_BYTES) {
             fprintf(stderr, "capture packet %u returned status=%d length=%u\n", packet,
                     descriptor->status, descriptor->actual_length);
             capture->failed = 1;
+            capture->active = 0;
             return;
         }
         const unsigned char *data = libusb_get_iso_packet_buffer_simple(transfer, packet);
-        for (unsigned int frame = 0; frame < FRAMES_PER_PACKET; ++frame) {
-            const double phase = TWO_PI * 1250.0 * (double)capture->frames_received / SAMPLE_RATE;
+        for (unsigned int frame = 0; frame < CAPTURE_FRAMES_PER_PACKET; ++frame) {
             for (unsigned int channel = 0; channel < CHANNELS; ++channel) {
                 const unsigned int offset = (frame * CHANNELS + channel) * BYTES_PER_SAMPLE;
                 const double sample = (double)decode_s24le(data + offset) / 8388608.0;
                 capture->sum_squares[channel] += sample * sample;
-                capture->cosine[channel] += sample * cos(phase);
-                capture->sine[channel] += sample * sin(phase);
+                for (unsigned int metric = 0; metric < METRIC_FREQUENCIES; ++metric) {
+                    const double phase = TWO_PI * metric_frequencies[metric] *
+                                         (double)capture->frames_received / SAMPLE_RATE;
+                    capture->cosine[channel][metric] += sample * cos(phase);
+                    capture->sine[channel][metric] += sample * sin(phase);
+                }
             }
             ++capture->frames_received;
         }
     }
-    capture->packets_received += PACKETS_PER_TRANSFER;
+    capture->packets_received += CAPTURE_PACKETS_PER_TRANSFER;
     if (capture->packets_received >= capture->packet_limit) {
+        capture->active = 0;
         return;
     }
     if (libusb_submit_transfer(transfer) != 0) {
         fprintf(stderr, "could not resubmit capture isochronous transfer\n");
         capture->failed = 1;
+        capture->active = 0;
     }
 }
 
@@ -194,8 +217,11 @@ static int restore_uac2(libusb_device_handle *handle) {
 
 static int detach_audio_drivers(libusb_device_handle *handle,
                                 struct kernel_driver_state *state,
-                                int remember_for_restore) {
-    for (int interface_number = 0; interface_number < 4; ++interface_number) {
+                                int remember_for_restore,
+                                int stream_only) {
+    const int first_interface = stream_only ? STREAM_INTERFACE : 0;
+    const int last_interface = stream_only ? STREAM_INTERFACE + 1 : 4;
+    for (int interface_number = first_interface; interface_number < last_interface; ++interface_number) {
         const int active = libusb_kernel_driver_active(handle, interface_number);
         if (active == LIBUSB_ERROR_NOT_FOUND) {
             continue;
@@ -240,6 +266,7 @@ static int reattach_audio_drivers(libusb_device_handle *handle,
 int main(int argc, char **argv) {
     unsigned int duration_seconds = 2;
     int execute = 0;
+    int output_only = 0;
     const char *raw_fixture = NULL;
     for (int index = 1; index < argc; ++index) {
         if (strcmp(argv[index], "--execute") == 0) {
@@ -248,8 +275,11 @@ int main(int argc, char **argv) {
             duration_seconds = (unsigned int)strtoul(argv[++index], NULL, 10);
         } else if (strcmp(argv[index], "--raw") == 0 && index + 1 < argc) {
             raw_fixture = argv[++index];
+        } else if (strcmp(argv[index], "--output-only") == 0) {
+            output_only = 1;
         } else {
-            fprintf(stderr, "usage: %s [--seconds N] [--raw S24_3LE_FILE] --execute\n", argv[0]);
+            fprintf(stderr, "usage: %s [--seconds N] [--raw S24_3LE_FILE] [--output-only] --execute\n",
+                    argv[0]);
             return 2;
         }
     }
@@ -282,17 +312,25 @@ int main(int argc, char **argv) {
         libusb_exit(usb);
         return 1;
     }
-    result = detach_audio_drivers(handle, &kernel_drivers, 1);
+    result = detach_audio_drivers(handle, &kernel_drivers, 1, output_only);
     if (result != 0) {
         goto cleanup;
     }
-    result = libusb_set_configuration(handle, CONFIG_VENDOR);
+    int configuration = 0;
+    result = libusb_get_configuration(handle, &configuration);
     if (result != 0) {
-        fprintf(stderr, "failed to select vendor configuration 1: %s\n", libusb_error_name(result));
+        fprintf(stderr, "could not read current USB configuration: %s\n", libusb_error_name(result));
         goto cleanup;
+    }
+    if (configuration != CONFIG_VENDOR) {
+        result = libusb_set_configuration(handle, CONFIG_VENDOR);
+        if (result != 0) {
+            fprintf(stderr, "failed to select vendor configuration 1: %s\n", libusb_error_name(result));
+            goto cleanup;
+        }
     }
     configuration_changed = 1;
-    result = detach_audio_drivers(handle, &kernel_drivers, 0);
+    result = detach_audio_drivers(handle, &kernel_drivers, 0, output_only);
     if (result != 0) {
         goto cleanup;
     }
@@ -307,16 +345,18 @@ int main(int argc, char **argv) {
         fprintf(stderr, "failed to select vendor stream altsetting: %s\n", libusb_error_name(result));
         goto cleanup;
     }
-    result = libusb_claim_interface(handle, CAPTURE_INTERFACE);
-    if (result != 0) {
-        fprintf(stderr, "failed to claim vendor capture interface: %s\n", libusb_error_name(result));
-        goto cleanup;
-    }
-    capture_claimed = 1;
-    result = libusb_set_interface_alt_setting(handle, CAPTURE_INTERFACE, CAPTURE_ALTSETTING);
-    if (result != 0) {
-        fprintf(stderr, "failed to select vendor capture altsetting: %s\n", libusb_error_name(result));
-        goto cleanup;
+    if (!output_only) {
+        result = libusb_claim_interface(handle, CAPTURE_INTERFACE);
+        if (result != 0) {
+            fprintf(stderr, "failed to claim vendor capture interface: %s\n", libusb_error_name(result));
+            goto cleanup;
+        }
+        capture_claimed = 1;
+        result = libusb_set_interface_alt_setting(handle, CAPTURE_INTERFACE, CAPTURE_ALTSETTING);
+        if (result != 0) {
+            fprintf(stderr, "failed to select vendor capture altsetting: %s\n", libusb_error_name(result));
+            goto cleanup;
+        }
     }
     if (raw_fixture && load_raw_fixture(raw_fixture, &stream) != 0) {
         result = LIBUSB_ERROR_OTHER;
@@ -328,38 +368,46 @@ int main(int argc, char **argv) {
         fprintf(stderr, "failed to allocate isochronous transfer\n");
         goto cleanup;
     }
-    capture.transfer = libusb_alloc_transfer(PACKETS_PER_TRANSFER);
-    if (!capture.transfer) {
-        fprintf(stderr, "failed to allocate capture isochronous transfer\n");
-        goto cleanup;
+    if (!output_only) {
+        capture.transfer = libusb_alloc_transfer(CAPTURE_PACKETS_PER_TRANSFER);
+        if (!capture.transfer) {
+            fprintf(stderr, "failed to allocate capture isochronous transfer\n");
+            goto cleanup;
+        }
     }
     unsigned char *buffer = calloc(1, TRANSFER_BYTES);
     if (!buffer) {
         fprintf(stderr, "failed to allocate isochronous buffer\n");
         goto cleanup;
     }
-    stream.packet_limit = duration_seconds * 1000UL;
-    capture.packet_limit = stream.packet_limit + PACKETS_PER_TRANSFER;
+    stream.packet_limit = duration_seconds * PACKETS_PER_SECOND;
+    capture.packet_limit = output_only ? 0 :
+        duration_seconds * CAPTURE_PACKETS_PER_SECOND + CAPTURE_PACKETS_PER_TRANSFER;
     stream.phase_step = TWO_PI * 1250.0 / SAMPLE_RATE;
     libusb_fill_iso_transfer(stream.transfer, handle, STREAM_ENDPOINT, buffer, TRANSFER_BYTES,
                              PACKETS_PER_TRANSFER,
                              transfer_complete, &stream, 1000);
     stream.transfer->flags = LIBUSB_TRANSFER_FREE_BUFFER;
     libusb_set_iso_packet_lengths(stream.transfer, PACKET_BYTES);
-    unsigned char *capture_buffer = calloc(1, TRANSFER_BYTES);
-    if (!capture_buffer) {
-        fprintf(stderr, "failed to allocate capture isochronous buffer\n");
-        result = LIBUSB_ERROR_NO_MEM;
-        goto cleanup;
-    }
-    libusb_fill_iso_transfer(capture.transfer, handle, CAPTURE_ENDPOINT, capture_buffer, TRANSFER_BYTES,
-                             PACKETS_PER_TRANSFER, capture_complete, &capture, 1000);
-    capture.transfer->flags = LIBUSB_TRANSFER_FREE_BUFFER;
-    libusb_set_iso_packet_lengths(capture.transfer, PACKET_BYTES);
-    result = libusb_submit_transfer(capture.transfer);
-    if (result != 0) {
-        fprintf(stderr, "failed to submit capture isochronous transfer: %s\n", libusb_error_name(result));
-        goto cleanup;
+    if (!output_only) {
+        unsigned char *capture_buffer = calloc(1, CAPTURE_TRANSFER_BYTES);
+        if (!capture_buffer) {
+            fprintf(stderr, "failed to allocate capture isochronous buffer\n");
+            result = LIBUSB_ERROR_NO_MEM;
+            goto cleanup;
+        }
+        libusb_fill_iso_transfer(capture.transfer, handle, CAPTURE_ENDPOINT, capture_buffer,
+                                 CAPTURE_TRANSFER_BYTES,
+                                 CAPTURE_PACKETS_PER_TRANSFER, capture_complete, &capture, 1000);
+        capture.transfer->flags = LIBUSB_TRANSFER_FREE_BUFFER;
+        libusb_set_iso_packet_lengths(capture.transfer, CAPTURE_PACKET_BYTES);
+        result = libusb_submit_transfer(capture.transfer);
+        if (result != 0) {
+            fprintf(stderr, "failed to submit capture isochronous transfer: %s\n",
+                    libusb_error_name(result));
+            goto cleanup;
+        }
+        capture.active = 1;
     }
     fill_transfer(&stream);
     result = libusb_submit_transfer(stream.transfer);
@@ -367,6 +415,7 @@ int main(int argc, char **argv) {
         fprintf(stderr, "failed to submit isochronous transfer: %s\n", libusb_error_name(result));
         goto cleanup;
     }
+    stream.active = 1;
     while (!stream.failed && !capture.failed &&
            (stream.packets_sent < stream.packet_limit || capture.packets_received < capture.packet_limit)) {
         struct timeval timeout = {.tv_sec = 1, .tv_usec = 0};
@@ -378,17 +427,35 @@ int main(int argc, char **argv) {
     }
     printf("configuration-1 stream completed: packets=%lu status=%s\n", stream.packets_sent,
            (stream.failed || capture.failed) ? "failed" : "ok");
-    if (capture.frames_received) {
+    if (!output_only && capture.frames_received) {
         for (unsigned int channel = 0; channel < CHANNELS; ++channel) {
             const double rms = sqrt(capture.sum_squares[channel] / capture.frames_received);
-            const double tone = 2.0 * hypot(capture.cosine[channel], capture.sine[channel]) /
-                                capture.frames_received;
-            printf("capture ch%u: rms=%.2f dBFS 1250Hz=%.2f dBFS\n", channel + 1,
-                   dbfs(rms), dbfs(tone));
+            printf("capture ch%u: rms=%.2f dBFS", channel + 1, dbfs(rms));
+            for (unsigned int metric = 0; metric < METRIC_FREQUENCIES; ++metric) {
+                const double tone = 2.0 * hypot(capture.cosine[channel][metric],
+                                                capture.sine[channel][metric]) /
+                                    capture.frames_received;
+                printf(" %.0fHz=%.2f dBFS", metric_frequencies[metric], dbfs(tone));
+            }
+            printf("\n");
         }
     }
 
 cleanup:
+    if (stream.transfer && stream.active) {
+        libusb_cancel_transfer(stream.transfer);
+    }
+    if (capture.transfer && capture.active) {
+        libusb_cancel_transfer(capture.transfer);
+    }
+    while ((stream.transfer && stream.active) || (capture.transfer && capture.active)) {
+        struct timeval timeout = {.tv_sec = 1, .tv_usec = 0};
+        const int event_result = libusb_handle_events_timeout_completed(usb, &timeout, NULL);
+        if (event_result != 0 && event_result != LIBUSB_ERROR_INTERRUPTED) {
+            fprintf(stderr, "could not drain cancelled transfers: %s\n", libusb_error_name(event_result));
+            break;
+        }
+    }
     free(stream.raw_data);
     if (capture.transfer) {
         libusb_free_transfer(capture.transfer);
@@ -404,7 +471,7 @@ cleanup:
     }
     int restore_failed = 0;
     if (configuration_changed) {
-        const int detach_result = detach_audio_drivers(handle, &kernel_drivers, 0);
+        const int detach_result = detach_audio_drivers(handle, &kernel_drivers, 0, output_only);
         if (detach_result != 0) {
             restore_failed = 1;
         }
