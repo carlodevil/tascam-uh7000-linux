@@ -30,6 +30,16 @@ class CliTests(unittest.TestCase):
         self.assertEqual(0, code)
         self.assertEqual("io.github.carlodevil.UH7000.State.v1", payload["schema"])
 
+    def test_clock_source_test_requires_output_confirmation(self) -> None:
+        code, payload = self.invoke("--json", "clock-source-test")
+        self.assertEqual(78, code)
+        self.assertFalse(payload["executed"])
+
+    def test_clock_source_test_is_dry_run_without_execute(self) -> None:
+        code, payload = self.invoke("--json", "clock-source-test", "--outputs-disconnected")
+        self.assertEqual(0, code)
+        self.assertTrue(payload["dry_run"])
+
 
 if __name__ == "__main__":
     unittest.main()

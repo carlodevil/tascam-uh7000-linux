@@ -12,6 +12,7 @@ from uh7000.protocol import (
     read_selector_status,
     read_state_page,
     set_clock_source,
+    validate_clock_source_cycle,
 )
 
 
@@ -65,6 +66,26 @@ class ProtocolTests(unittest.TestCase):
         )
         with self.assertRaisesRegex(IOError, "previous state restored"):
             set_clock_source(transport, ClockSource.INTERNAL)
+        self.assertEqual([0, 2], [write[1] for write in transport.writes])
+
+    def test_clock_source_cycle_restores_automatic(self) -> None:
+        transport = MemoryTransport(
+            {
+                (REQUEST_SELECTOR_STATUS, 0, 0, 1): [
+                    b"\x02",
+                    b"\x02",
+                    b"\x00",
+                    b"\x00",
+                    b"\x00",
+                    b"\x02",
+                    b"\x02",
+                ]
+            }
+        )
+        cycle = validate_clock_source_cycle(transport)
+        self.assertEqual(ClockSource.AUTOMATIC, cycle.initial)
+        self.assertEqual(ClockSource.INTERNAL, cycle.tested)
+        self.assertEqual(ClockSource.AUTOMATIC, cycle.final)
         self.assertEqual([0, 2], [write[1] for write in transport.writes])
 
 

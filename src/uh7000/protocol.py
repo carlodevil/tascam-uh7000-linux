@@ -51,6 +51,13 @@ class ClockSource(IntEnum):
 
 
 @dataclass(frozen=True, slots=True)
+class ClockSourceCycle:
+    initial: ClockSource
+    tested: ClockSource
+    final: ClockSource
+
+
+@dataclass(frozen=True, slots=True)
 class StatePage:
     index: int
     payload: bytes
@@ -133,6 +140,41 @@ def set_clock_source(transport: ControlTransport, source: ClockSource) -> ClockS
             f"{failure}, rollback=0x{rolled_back:02x}"
         )
     raise IOError(f"clock-source transaction failed; previous state restored: {failure}")
+
+
+def validate_clock_source_cycle(transport: ControlTransport) -> ClockSourceCycle:
+    """Validate the only captured write/readback pair and restore its start state."""
+    initial = ClockSource(read_selector_status(transport))
+    if initial is not ClockSource.AUTOMATIC:
+        raise RuntimeError(
+            "clock-source validation requires Automatic as the initial state; "
+            f"observed 0x{int(initial):02x}"
+        )
+
+    failure: Exception | None = None
+    tested = initial
+    try:
+        tested = set_clock_source(transport, ClockSource.INTERNAL)
+        if tested is not ClockSource.INTERNAL:
+            raise IOError(f"clock-source test observed unexpected value 0x{int(tested):02x}")
+    except Exception as exc:
+        failure = exc
+
+    try:
+        current = ClockSource(read_selector_status(transport))
+        if current is not initial:
+            set_clock_source(transport, initial)
+        final = ClockSource(read_selector_status(transport))
+    except Exception as exc:
+        raise IOError("clock-source validation could not restore its initial state") from exc
+    if final is not initial:
+        raise IOError(
+            "clock-source validation did not restore its initial state: "
+            f"expected=0x{int(initial):02x}, observed=0x{int(final):02x}"
+        )
+    if failure is not None:
+        raise failure
+    return ClockSourceCycle(initial=initial, tested=tested, final=final)
 
 
 def read_state_page(transport: ControlTransport, index: int) -> StatePage:

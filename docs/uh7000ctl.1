@@ -29,6 +29,14 @@ Add verified read-only vendor request 0x49 and page 0x1f00 probes.
 .B selector-status
 Read the verified one-byte vendor selector status.
 .TP
+.B clock-source-test
+Run the guarded Automatic, Internal, Automatic selector transaction only after
+the operator supplies both
+.B --outputs-disconnected
+and
+.BR --execute .
+The command verifies every transition and restores Automatic before returning.
+.TP
 .BI state-dump " directory"
 Write only verified read-only request-0x55 pages and a JSON manifest.
 .TP

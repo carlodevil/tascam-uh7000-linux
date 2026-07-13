@@ -14,7 +14,12 @@ from typing import Any, Sequence
 from .client import service_state
 from .controller import Controller
 from .device import PyUsbTransport
-from .protocol import VERIFIED_STATE_PAGES, read_selector_status, read_state_page
+from .protocol import (
+    VERIFIED_STATE_PAGES,
+    read_selector_status,
+    read_state_page,
+    validate_clock_source_cycle,
+)
 
 CONFIGURE_HELPER = Path("/usr/libexec/tascam-uh7000/tascam-uh7000-configure")
 
@@ -36,6 +41,11 @@ def build_parser() -> argparse.ArgumentParser:
     sub.add_parser("state", help="show all typed service state")
     sub.add_parser("diagnostics", help="include verified read-only protocol probes")
     sub.add_parser("selector-status", help="read verified vendor selector request 0x49")
+    clock_test = sub.add_parser(
+        "clock-source-test", help="validate and restore the clock-source write/readback pair"
+    )
+    clock_test.add_argument("--outputs-disconnected", action="store_true")
+    clock_test.add_argument("--execute", action="store_true")
 
     dump = sub.add_parser("state-dump", help="dump only verified read-only request 0x55 pages")
     dump.add_argument("directory", type=Path)
@@ -94,6 +104,36 @@ def main(argv: Sequence[str] | None = None) -> int:
             _emit(service_state("GetDiagnostics") or controller.diagnostics(), args.json)
         elif args.command == "selector-status":
             _emit({"selector_status": read_selector_status(PyUsbTransport())}, True)
+        elif args.command == "clock-source-test":
+            if not args.outputs_disconnected:
+                _emit(
+                    {
+                        "executed": False,
+                        "reason": "physical output disconnection must be confirmed",
+                    },
+                    True,
+                )
+                return 78
+            if not args.execute:
+                _emit(
+                    {
+                        "executed": False,
+                        "dry_run": True,
+                        "sequence": ["automatic", "internal", "automatic"],
+                    },
+                    True,
+                )
+                return 0
+            cycle = validate_clock_source_cycle(PyUsbTransport())
+            _emit(
+                {
+                    "executed": True,
+                    "initial": cycle.initial.name.lower(),
+                    "tested": cycle.tested.name.lower(),
+                    "final": cycle.final.name.lower(),
+                },
+                True,
+            )
         elif args.command == "state-dump":
             _emit(_state_dump(args.directory), True)
         elif args.command == "configure":
