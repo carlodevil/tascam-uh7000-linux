@@ -108,6 +108,11 @@ class Controller:
             raise UnverifiedControlError(
                 "physical output disconnection must be confirmed before changing clock source"
             )
+        device = device_status()
+        if device.usb_configuration != 2:
+            raise UnverifiedControlError(
+                "clock-source changes require USB configuration 2; disable the analog output sink first"
+            )
         sources = {
             "automatic": ProtocolClockSource.AUTOMATIC,
             "internal": ProtocolClockSource.INTERNAL,

@@ -104,6 +104,10 @@ The same beta4 validation manually selected configuration 1, confirmed that
 service reported configuration 2. This covers a software configuration
 handoff, not a physical USB unplug or power-cycle.
 
+Beta5 refuses clock-source writes unless configuration 2 is active. Read-only
+status remains available with the PipeWire analog sink enabled, but disable the
+sink before any control-plane write that can interrupt the stream.
+
 ## Clock-source control
 
 With all physical outputs still disconnected, the persistent control path is:

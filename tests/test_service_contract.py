@@ -1,8 +1,10 @@
 from __future__ import annotations
 
 import unittest
+from unittest.mock import patch
 
 from uh7000.controller import Controller, UnverifiedControlError
+from uh7000.models import DeviceStatus
 from uh7000.protocol import MemoryTransport, REQUEST_SELECTOR_STATUS
 from uh7000.service import BUS_NAME, INTERFACE_NAME, OBJECT_PATH
 
@@ -27,11 +29,26 @@ class ServiceContractTests(unittest.TestCase):
             {(REQUEST_SELECTOR_STATUS, 0, 0, 1): [b"\x02", b"\x00"]}
         )
         controller = Controller(transport_factory=lambda: transport)
-        with self.assertRaises(UnverifiedControlError):
-            controller.set_clock_source("internal", outputs_disconnected=False)
-        state = controller.set_clock_source("internal", outputs_disconnected=True)
+        with patch(
+            "uh7000.controller.device_status",
+            return_value=DeviceStatus(connected=True, usb_configuration=2),
+        ):
+            with self.assertRaises(UnverifiedControlError):
+                controller.set_clock_source("internal", outputs_disconnected=False)
+            state = controller.set_clock_source("internal", outputs_disconnected=True)
         self.assertEqual("internal", state.clock_source.value)
         self.assertEqual([0], [write[1] for write in transport.writes])
+
+    def test_clock_source_rejects_active_analog_output_configuration(self) -> None:
+        transport = MemoryTransport({(REQUEST_SELECTOR_STATUS, 0, 0, 1): [b"\x02"]})
+        controller = Controller(transport_factory=lambda: transport)
+        with patch(
+            "uh7000.controller.device_status",
+            return_value=DeviceStatus(connected=True, usb_configuration=1),
+        ):
+            with self.assertRaisesRegex(UnverifiedControlError, "configuration 2"):
+                controller.set_clock_source("internal", outputs_disconnected=True)
+        self.assertEqual([], transport.writes)
 
 
 if __name__ == "__main__":
