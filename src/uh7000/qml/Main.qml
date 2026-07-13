@@ -33,13 +33,7 @@ ApplicationWindow {
     palette.highlight: accent
     palette.highlightedText: "#111315"
 
-    background: Rectangle {
-        gradient: Gradient {
-            GradientStop { position: 0; color: "#30353a" }
-            GradientStop { position: 0.14; color: "#202428" }
-            GradientStop { position: 1; color: "#111315" }
-        }
-    }
+    background: Rectangle { color: "#111315" }
 
     header: ColumnLayout {
         spacing: 0
@@ -144,7 +138,29 @@ ApplicationWindow {
                         Label { text: "Audio performance" }
                         ComboBox { model: ["Safe", "High", "Normal", "Low", "Lowest"]; currentIndex: 2; enabled: uh7000.hardwareControlsVerified }
                         Label { text: "Sample clock source" }
-                        ComboBox { model: ["Automatic", "Internal"]; enabled: uh7000.hardwareControlsVerified }
+                        RowLayout {
+                            spacing: 8
+                            ComboBox {
+                                id: clockSource
+                                model: ["Automatic", "Internal"]
+                                currentIndex: uh7000.clockSource === "internal" ? 1 : 0
+                                enabled: uh7000.connected && outputsDisconnected.checked
+                            }
+                            Button {
+                                text: "Apply"
+                                enabled: clockSource.enabled
+                                onClicked: uh7000.setClockSource(
+                                    clockSource.currentIndex === 1 ? "internal" : "automatic",
+                                    outputsDisconnected.checked
+                                )
+                            }
+                        }
+                        Label { text: "Outputs disconnected" }
+                        CheckBox {
+                            id: outputsDisconnected
+                            text: "Confirmed"
+                            enabled: uh7000.connected
+                        }
                         Label { text: "Auto power save" }
                         Switch { text: checked ? "30 min" : "Off"; checked: true; enabled: uh7000.hardwareControlsVerified }
                     }

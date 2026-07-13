@@ -47,6 +47,16 @@ def main() -> int:
                 self._state = self.controller.snapshot()
             self.changed.emit()
 
+        @Slot(str, bool)
+        def setClockSource(self, source: str, outputs_disconnected: bool) -> None:
+            reply = self.service.call("SetClockSource", source, outputs_disconnected)
+            if reply.type() != QDBusMessage.MessageType.ErrorMessage and reply.arguments():
+                try:
+                    self._state["mixer"] = json.loads(reply.arguments()[0])
+                except (TypeError, ValueError):
+                    pass
+            self.refresh()
+
         @Property(bool, notify=changed)
         def connected(self) -> bool:
             return bool(self._state.get("device", {}).get("connected", False))  # type: ignore[union-attr]
@@ -58,6 +68,10 @@ def main() -> int:
         @Property(bool, constant=True)
         def hardwareControlsVerified(self) -> bool:
             return False
+
+        @Property(str, notify=changed)
+        def clockSource(self) -> str:
+            return str(self._state.get("mixer", {}).get("clock_source", "automatic"))  # type: ignore[union-attr]
 
         @Property(str, notify=changed)
         def statusText(self) -> str:

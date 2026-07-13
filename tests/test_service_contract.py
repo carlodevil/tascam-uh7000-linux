@@ -3,6 +3,7 @@ from __future__ import annotations
 import unittest
 
 from uh7000.controller import Controller, UnverifiedControlError
+from uh7000.protocol import MemoryTransport, REQUEST_SELECTOR_STATUS
 from uh7000.service import BUS_NAME, INTERFACE_NAME, OBJECT_PATH
 
 
@@ -20,6 +21,17 @@ class ServiceContractTests(unittest.TestCase):
             controller.reset()
         with self.assertRaises(UnverifiedControlError):
             controller.apply_preset("adcdac")
+
+    def test_clock_source_requires_confirmation_and_updates_state(self) -> None:
+        transport = MemoryTransport(
+            {(REQUEST_SELECTOR_STATUS, 0, 0, 1): [b"\x02", b"\x00"]}
+        )
+        controller = Controller(transport_factory=lambda: transport)
+        with self.assertRaises(UnverifiedControlError):
+            controller.set_clock_source("internal", outputs_disconnected=False)
+        state = controller.set_clock_source("internal", outputs_disconnected=True)
+        self.assertEqual("internal", state.clock_source.value)
+        self.assertEqual([0], [write[1] for write in transport.writes])
 
 
 if __name__ == "__main__":

@@ -46,6 +46,12 @@ def build_parser() -> argparse.ArgumentParser:
     )
     clock_test.add_argument("--outputs-disconnected", action="store_true")
     clock_test.add_argument("--execute", action="store_true")
+    clock_source = sub.add_parser(
+        "clock-source", help="set a verified clock source after physical output confirmation"
+    )
+    clock_source.add_argument("source", choices=("automatic", "internal"))
+    clock_source.add_argument("--outputs-disconnected", action="store_true")
+    clock_source.add_argument("--execute", action="store_true")
 
     dump = sub.add_parser("state-dump", help="dump only verified read-only request 0x55 pages")
     dump.add_argument("directory", type=Path)
@@ -132,6 +138,33 @@ def main(argv: Sequence[str] | None = None) -> int:
                     "tested": cycle.tested.name.lower(),
                     "final": cycle.final.name.lower(),
                 },
+                True,
+            )
+        elif args.command == "clock-source":
+            if not args.outputs_disconnected:
+                _emit(
+                    {
+                        "executed": False,
+                        "reason": "physical output disconnection must be confirmed",
+                    },
+                    True,
+                )
+                return 78
+            if not args.execute:
+                _emit(
+                    {
+                        "executed": False,
+                        "dry_run": True,
+                        "clock_source": args.source,
+                    },
+                    True,
+                )
+                return 0
+            mixer = controller.set_clock_source(
+                args.source, outputs_disconnected=args.outputs_disconnected
+            )
+            _emit(
+                {"executed": True, "clock_source": mixer.clock_source.value},
                 True,
             )
         elif args.command == "state-dump":

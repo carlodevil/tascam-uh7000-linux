@@ -11,6 +11,11 @@
       <arg name="patch_json" type="s" direction="in"/>
       <arg name="mixer_json" type="s" direction="out"/>
     </method>
+    <method name="SetClockSource">
+      <arg name="source" type="s" direction="in"/>
+      <arg name="outputs_disconnected" type="b" direction="in"/>
+      <arg name="mixer_json" type="s" direction="out"/>
+    </method>
     <method name="Reset">
       <arg name="applied" type="b" direction="out"/>
     </method>

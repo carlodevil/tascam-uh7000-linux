@@ -50,6 +50,21 @@ async def run_service() -> None:
             return payload
 
         @method()
+        def SetClockSource(
+            self, source: "s", outputs_disconnected: "b"
+        ) -> "s":  # type: ignore[valid-type]
+            try:
+                state = controller.set_clock_source(
+                    source, outputs_disconnected=outputs_disconnected
+                )
+            except (OSError, RuntimeError, ValueError, UnverifiedControlError) as exc:
+                self.SafetyAbort(str(exc))
+                raise
+            payload = json.dumps(state.to_dict(), sort_keys=True)
+            self.StateChanged(payload)
+            return payload
+
+        @method()
         def Reset(self) -> "b":  # type: ignore[valid-type]
             try:
                 controller.reset()
