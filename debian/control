@@ -9,6 +9,7 @@ Build-Depends:
  python3-all,
  python3-pytest,
  python3-setuptools,
+ libusb-1.0-0-dev,
 Standards-Version: 4.7.0
 Homepage: https://github.com/carlodevil/tascam-uh7000-linux
 Vcs-Git: https://github.com/carlodevil/tascam-uh7000-linux.git
@@ -16,10 +17,11 @@ Vcs-Browser: https://github.com/carlodevil/tascam-uh7000-linux
 Rules-Requires-Root: no
 
 Package: tascam-uh7000-linux
-Architecture: all
+Architecture: any
 Depends:
  ${misc:Depends},
  ${python3:Depends},
+ ${shlibs:Depends},
  kmod,
  python3-dbus-next,
  python3-pyside6.qtcore,

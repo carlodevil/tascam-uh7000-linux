@@ -317,8 +317,13 @@ Safe local probes found:
   dBFS at 625 Hz, and restored configuration `2` cleanly. This verifies the
   configuration-1 transport and physical output route, but not the Windows
   shared-audio encoder: the same Windows fixture produces 625 Hz on Linux where
-  the Windows loopback returns 1.25 kHz. The probe remains experimental and is
-  not part of the packaged driver.
+  the Windows loopback returns 1.25 kHz. A second, generated ordinary stereo
+  S24_3LE 1.25 kHz stream returned 1.25 kHz on Analog Input 2 at -1.75 dBFS.
+  The packet transport is therefore ordinary stereo PCM; the unmatched Windows
+  fixture is not a playback oracle because it was captured in a different run
+  from the verified physical loopback. The bounded transport backend is now
+  packaged as `uh7000-stream` in output-only mode; the opt-in
+  `--duplex-probe` capture and raw-fixture modes remain experimental.
 
 The helper call-site table can be regenerated from an objdump-style driver
 disassembly:

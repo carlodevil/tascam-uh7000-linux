@@ -1,3 +1,5 @@
+#define _POSIX_C_SOURCE 200809L
+
 /*
  * Opt-in configuration-1 analog playback probe for the TASCAM UH-7000.
  *
@@ -7,12 +9,16 @@
  */
 
 #include <libusb-1.0/libusb.h>
+#include <errno.h>
+#include <fcntl.h>
 #include <math.h>
+#include <signal.h>
 #include <stdint.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
 #include <time.h>
+#include <unistd.h>
 
 #define VID 0x0644
 #define PID 0x8048
@@ -53,6 +59,10 @@ struct stream_context {
     unsigned char *raw_data;
     size_t raw_length;
     size_t raw_offset;
+    int stdin_mode;
+    unsigned char stdin_buffer[PACKET_BYTES];
+    size_t stdin_length;
+    int stdin_eof;
     int active;
 };
 
@@ -72,7 +82,46 @@ struct kernel_driver_state {
     int detached[4];
 };
 
+static volatile sig_atomic_t stop_requested;
+
+static void request_stop(int signal_number) {
+    (void)signal_number;
+    stop_requested = 1;
+}
+
+static void fill_stdin_packet(struct stream_context *stream, unsigned char *data) {
+    while (stream->stdin_length < PACKET_BYTES && !stream->stdin_eof) {
+        const ssize_t bytes_read = read(STDIN_FILENO,
+                                        stream->stdin_buffer + stream->stdin_length,
+                                        PACKET_BYTES - stream->stdin_length);
+        if (bytes_read > 0) {
+            stream->stdin_length += (size_t)bytes_read;
+            continue;
+        }
+        if (bytes_read == 0) {
+            stream->stdin_eof = 1;
+            break;
+        }
+        if (errno == EINTR) {
+            continue;
+        }
+        if (errno == EAGAIN || errno == EWOULDBLOCK) {
+            break;
+        }
+        perror("read standard input");
+        stream->stdin_eof = 1;
+        break;
+    }
+    memcpy(data, stream->stdin_buffer, stream->stdin_length);
+    memset(data + stream->stdin_length, 0, PACKET_BYTES - stream->stdin_length);
+    stream->stdin_length = 0;
+}
+
 static void fill_audio_packet(struct stream_context *stream, unsigned char *data) {
+    if (stream->stdin_mode) {
+        fill_stdin_packet(stream, data);
+        return;
+    }
     if (stream->raw_data) {
         memcpy(data, stream->raw_data + stream->raw_offset, PACKET_BYTES);
         stream->raw_offset = (stream->raw_offset + PACKET_BYTES) % stream->raw_length;
@@ -117,7 +166,8 @@ static void LIBUSB_CALL transfer_complete(struct libusb_transfer *transfer) {
         return;
     }
     stream->packets_sent += PACKETS_PER_TRANSFER;
-    if (stream->packets_sent >= stream->packet_limit) {
+    if ((stream->packet_limit && stream->packets_sent >= stream->packet_limit) ||
+        stream->stdin_eof || stop_requested) {
         stream->active = 0;
         return;
     }
@@ -266,7 +316,8 @@ static int reattach_audio_drivers(libusb_device_handle *handle,
 int main(int argc, char **argv) {
     unsigned int duration_seconds = 2;
     int execute = 0;
-    int output_only = 0;
+    int output_only = 1;
+    int stdin_mode = 0;
     const char *raw_fixture = NULL;
     for (int index = 1; index < argc; ++index) {
         if (strcmp(argv[index], "--execute") == 0) {
@@ -277,19 +328,32 @@ int main(int argc, char **argv) {
             raw_fixture = argv[++index];
         } else if (strcmp(argv[index], "--output-only") == 0) {
             output_only = 1;
+        } else if (strcmp(argv[index], "--duplex-probe") == 0) {
+            output_only = 0;
+        } else if (strcmp(argv[index], "--stdin") == 0) {
+            stdin_mode = 1;
+            output_only = 1;
         } else {
-            fprintf(stderr, "usage: %s [--seconds N] [--raw S24_3LE_FILE] [--output-only] --execute\n",
+            fprintf(stderr,
+                    "usage: %s [--seconds N] [--raw S24_3LE_FILE] [--stdin] [--output-only] "
+                    "[--duplex-probe] --execute\n",
                     argv[0]);
             return 2;
         }
     }
-    if (duration_seconds == 0 || duration_seconds > 10) {
-        fprintf(stderr, "--seconds must be between 1 and 10\n");
+    if (duration_seconds > 10 || (duration_seconds == 0 && !stdin_mode)) {
+        fprintf(stderr, "--seconds must be between 1 and 10, or 0 only with --stdin\n");
+        return 2;
+    }
+    if (raw_fixture && stdin_mode) {
+        fprintf(stderr, "--raw and --stdin cannot be used together\n");
         return 2;
     }
     if (!execute) {
-        printf("dry-run: would stream %s through configuration 1 for %u seconds\n",
-               raw_fixture ? raw_fixture : "stereo 1250 Hz at -30 dBFS", duration_seconds);
+        const char *source = stdin_mode ? "stereo S24_3LE stdin" :
+                             raw_fixture ? raw_fixture : "stereo 1250 Hz at -30 dBFS";
+        printf("dry-run: would stream %s through configuration 1 for %s\n", source,
+               duration_seconds ? "the requested duration" : "until interrupted");
         return 0;
     }
 
@@ -312,14 +376,15 @@ int main(int argc, char **argv) {
         libusb_exit(usb);
         return 1;
     }
-    result = detach_audio_drivers(handle, &kernel_drivers, 1, output_only);
-    if (result != 0) {
-        goto cleanup;
-    }
     int configuration = 0;
     result = libusb_get_configuration(handle, &configuration);
     if (result != 0) {
         fprintf(stderr, "could not read current USB configuration: %s\n", libusb_error_name(result));
+        goto cleanup;
+    }
+    const int preserve_capture = output_only && configuration == CONFIG_VENDOR;
+    result = detach_audio_drivers(handle, &kernel_drivers, 1, preserve_capture);
+    if (result != 0) {
         goto cleanup;
     }
     if (configuration != CONFIG_VENDOR) {
@@ -330,7 +395,7 @@ int main(int argc, char **argv) {
         }
     }
     configuration_changed = 1;
-    result = detach_audio_drivers(handle, &kernel_drivers, 0, output_only);
+    result = detach_audio_drivers(handle, &kernel_drivers, 0, preserve_capture);
     if (result != 0) {
         goto cleanup;
     }
@@ -358,9 +423,23 @@ int main(int argc, char **argv) {
             goto cleanup;
         }
     }
+    /* The vendor endpoints can report their previous alternate setting for a
+     * few microframes immediately after the switch.  Do not submit audio until
+     * both selected interfaces have settled. */
+    const struct timespec endpoint_settle = {.tv_sec = 0, .tv_nsec = 100000000L};
+    nanosleep(&endpoint_settle, NULL);
     if (raw_fixture && load_raw_fixture(raw_fixture, &stream) != 0) {
         result = LIBUSB_ERROR_OTHER;
         goto cleanup;
+    }
+    stream.stdin_mode = stdin_mode;
+    if (stdin_mode) {
+        const int flags = fcntl(STDIN_FILENO, F_GETFL);
+        if (flags < 0 || fcntl(STDIN_FILENO, F_SETFL, flags | O_NONBLOCK) < 0) {
+            perror("configure standard input");
+            result = LIBUSB_ERROR_OTHER;
+            goto cleanup;
+        }
     }
 
     stream.transfer = libusb_alloc_transfer(PACKETS_PER_TRANSFER);
@@ -380,7 +459,7 @@ int main(int argc, char **argv) {
         fprintf(stderr, "failed to allocate isochronous buffer\n");
         goto cleanup;
     }
-    stream.packet_limit = duration_seconds * PACKETS_PER_SECOND;
+    stream.packet_limit = duration_seconds ? duration_seconds * PACKETS_PER_SECOND : 0;
     capture.packet_limit = output_only ? 0 :
         duration_seconds * CAPTURE_PACKETS_PER_SECOND + CAPTURE_PACKETS_PER_TRANSFER;
     stream.phase_step = TWO_PI * 1250.0 / SAMPLE_RATE;
@@ -416,8 +495,11 @@ int main(int argc, char **argv) {
         goto cleanup;
     }
     stream.active = 1;
-    while (!stream.failed && !capture.failed &&
-           (stream.packets_sent < stream.packet_limit || capture.packets_received < capture.packet_limit)) {
+    signal(SIGINT, request_stop);
+    signal(SIGTERM, request_stop);
+    while (!stop_requested && !stream.failed && !capture.failed &&
+           (stream.packet_limit == 0 || stream.packets_sent < stream.packet_limit ||
+            capture.packets_received < capture.packet_limit)) {
         struct timeval timeout = {.tv_sec = 1, .tv_usec = 0};
         result = libusb_handle_events_timeout_completed(usb, &timeout, NULL);
         if (result != 0 && result != LIBUSB_ERROR_INTERRUPTED) {
@@ -471,7 +553,10 @@ cleanup:
     }
     int restore_failed = 0;
     if (configuration_changed) {
-        const int detach_result = detach_audio_drivers(handle, &kernel_drivers, 0, output_only);
+        /* Every audio interface must be detached before configuration 2 can
+         * be selected, including a capture interface retained for a config-1
+         * output-only diagnostic. */
+        const int detach_result = detach_audio_drivers(handle, &kernel_drivers, 0, 0);
         if (detach_result != 0) {
             restore_failed = 1;
         }

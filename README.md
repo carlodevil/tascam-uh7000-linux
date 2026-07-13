@@ -30,10 +30,33 @@ as device failures: the same-device test formed a feedback loop while
 passthrough was active.
 
 The configuration-2 playback terminal is advertised as a USB Digital Audio
-Interface. Linux can stream four PCM channels to that endpoint, but analog
-Master/Line playback remains unverified: it depends on the UH-7000's
-proprietary mixer and routing state, which the Windows driver configures beyond
-standard UAC2 controls.
+Interface. Linux can stream four PCM channels to that endpoint, but it is not
+the verified analog path. Analog Master/Line playback is provided explicitly
+by the packaged configuration-1 backend described below.
+
+## Analog playback
+
+`uh7000-stream` is the verified configuration-1 analog playback backend. It
+accepts stereo 48 kHz `S24_3LE` raw PCM, temporarily claims the vendor stream,
+then restores configuration 2 and the normal ALSA capture/control card when it
+exits. It uses no mixer or DSP write.
+
+```sh
+ffmpeg -i music.wav -f s24le -ac 2 -ar 48000 - | \
+  uh7000-stream --stdin --seconds 0 --execute
+```
+
+For a bounded diagnostic tone, first disconnect speakers and headphones:
+
+```sh
+uh7000-stream --seconds 2 --execute
+```
+
+The local analog loopback validation returned a generated 1250 Hz stream on
+Analog Input 2 at -1.75 dBFS. It is therefore a real analog-output path, not
+an ALSA routing plan. The backend currently does not register itself as the
+desktop's default PipeWire sink; keep desktop audio directed to it explicitly
+until that sink integration has completed the reconnect/endurance tests.
 
 ## Safety model
 
@@ -60,6 +83,7 @@ by more than 12 dB in one 100 ms guard window.
 - `uh7000ctl`: state, topology, diagnostics, safe preflight, and read-only USB
   inspection
 - `tascam-uh7000-configure`: root-only UAC2 hot-plug helper
+- `uh7000-stream`: explicit configuration-1 analog playback backend
 - UCM2 and WirePlumber profiles with stable UH-7000 naming
 
 ## Build on Debian 13
@@ -81,7 +105,7 @@ pytest
 ## Install and inspect
 
 ```sh
-sudo apt install ../tascam-uh7000-linux_0.2.0~beta1_all.deb
+sudo apt install ../tascam-uh7000-linux_0.2.0~beta2_amd64.deb
 uh7000ctl --json status
 uh7000ctl --json topology
 uh7000ctl --json diagnostics

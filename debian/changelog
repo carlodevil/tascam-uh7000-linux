@@ -1,3 +1,10 @@
+tascam-uh7000-linux (0.2.0~beta2) unstable; urgency=medium
+
+  * Add the bounded configuration-1 analog playback backend.
+  * Package uh7000-stream for explicit stereo S24_3LE 48 kHz playback.
+
+ -- carlodevil <64757000+carlodevil@users.noreply.github.com>  Mon, 13 Jul 2026 14:10:00 +0200
+
 tascam-uh7000-linux (0.2.0~beta1) unstable; urgency=medium
 
   * Rebuild the project around the confirmed UAC2 configuration 2 path.

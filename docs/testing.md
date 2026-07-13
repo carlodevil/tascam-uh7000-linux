@@ -39,6 +39,36 @@ endpoint `0x85` were present. With all physical outputs disconnected, the
 transactional clock-source test completed `automatic -> internal -> automatic`
 with final selector `0x02`. This does not validate playback routing.
 
+The separate configuration-1 backend was also validated through a physical
+Left Line Output to Analog Input 2 loop. A generated 48 kHz stereo S24_3LE
+1250 Hz stream returned at -1.75 dBFS, with the device restored to
+configuration 2 afterwards. Do not use that test level with a raised input gain
+or connected speakers/headphones.
+
+## Configuration-1 analog playback
+
+`uh7000-stream` is intentionally separate from the configuration-2 ALSA card.
+It takes stereo S24_3LE raw PCM at exactly 48 kHz, uses the vendor stream for
+the requested bounded duration, then returns the hardware to configuration 2.
+
+With physical outputs disconnected, verify transport and recovery:
+
+```sh
+uh7000-stream --seconds 2 --execute
+uh7000ctl --json topology
+```
+
+For a file, explicitly resample and pipe it into the backend:
+
+```sh
+ffmpeg -i input.wav -f s24le -ac 2 -ar 48000 - | \
+  uh7000-stream --stdin --seconds 0 --execute
+```
+
+Record the pre/post `uh7000ctl --json topology` result, command exit status,
+and any USB errors. Long-running playback and default PipeWire-sink integration
+remain release gates.
+
 ## Clock-source control
 
 With all physical outputs still disconnected, the persistent control path is:
