@@ -13,8 +13,9 @@ python3 -m json.tool research/windows-control-fixtures.json >/dev/null
 python3 tools/validate_control_fixtures.py
 
 if command -v pkg-config >/dev/null 2>&1 && pkg-config --exists libusb-1.0; then
-    gcc -std=c11 -Wall -Wextra -Werror -O2 tools/uh7000_config1_probe.c \
-        -o /tmp/uh7000-stream-smoke $(pkg-config --cflags --libs libusb-1.0) -lm
+    pkg-config --cflags --libs libusb-1.0 | xargs -r gcc \
+        -std=c11 -Wall -Wextra -Werror -O2 tools/uh7000_config1_probe.c \
+        -o /tmp/uh7000-stream-smoke -lm
     /tmp/uh7000-stream-smoke --stdin --seconds 0
 fi
 
