@@ -150,6 +150,18 @@ the device restored configuration 2 with `snd_usb_audio` bound. This validates
 the second configuration-1 analog output/input path, but does not identify the
 four configuration-2 UAC2 playback-channel routes.
 
+An attempted AES/EBU output-to-input loop on the same host is explicitly not
+qualified. With the analog loop removed and physical AES/EBU output connected
+to AES/EBU input, the configuration-1 feedback and capture packets returned
+zero length on the first transfer. The probe failed closed before audio was
+streamed, but the device then refused all software attempts to select
+configuration 2. USB reset and USB authorization reset did not recover it.
+Recovery required disconnecting both the UH-7000 power and USB cables until
+the host confirmed the device was absent, then reconnecting power first and
+USB second. A single configuration-2 selection then succeeded. Do not repeat
+the AES/EBU loop test until its vendor endpoint behavior and recovery path are
+understood.
+
 ## Clock-source control
 
 With all physical outputs still disconnected, the persistent control path is:
