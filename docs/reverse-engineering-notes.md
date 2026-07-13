@@ -95,8 +95,12 @@ the known master-route block measured about -80 dBFS RMS. Sending a three-second
 the captured Windows computer-playback `0x4d` block in configuration `1` made
 the broadband clipping worse and also did not recover the tone. The block was
 then restored to the captured master-route value and the idle baseline returned.
-This confirms that the remaining requirement is product-specific stream/setup
-state, not merely configuration selection, endpoint cadence, or byte order.
+The known five-write vendor `0x41` 48 kHz setup sequence also completed in
+configuration `1` but produced broadband playback rather than the tone; it did
+not persist in the subsequent idle capture. This confirms that the remaining
+requirement is product-specific stream/setup state beyond the known route and
+sample-rate controls, not merely configuration selection, endpoint cadence, or
+byte order.
 
 ## Control-Plane Findings
 
