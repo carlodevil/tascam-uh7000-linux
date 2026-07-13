@@ -6,6 +6,7 @@ PID="8048"
 TARGET_CONFIG="2"
 CONFIGURE_ATTEMPTS="8"
 LOG_TAG="tascam-uh7000"
+CONFIGURATION_LOCK="/run/tascam-uh7000/configuration.lock"
 
 log() {
     if command -v logger >/dev/null 2>&1; then
@@ -57,6 +58,16 @@ esac
 if [ "$(id -u)" -ne 0 ]; then
     log "must run as root"
     exit 1
+fi
+
+# A live configuration-1 stream holds this advisory lock before changing USB
+# configuration. Its change event must not force UAC2 back underneath usbfs.
+if [ -e "$CONFIGURATION_LOCK" ] && command -v flock >/dev/null 2>&1; then
+    exec 9>"$CONFIGURATION_LOCK"
+    if ! flock -n 9; then
+        log "configuration-1 stream is active; deferring UAC2 selection"
+        exit 0
+    fi
 fi
 
 devpath=""

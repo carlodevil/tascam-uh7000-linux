@@ -4,7 +4,7 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "tascam-uh7000-linux"
-version = "0.2.0b21"
+version = "0.2.0b22"
 description = "Unofficial Linux control service and UAC2 integration for the TASCAM UH-7000"
 readme = "README.md"
 requires-python = ">=3.11"

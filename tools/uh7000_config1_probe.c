@@ -17,6 +17,7 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
+#include <sys/file.h>
 #include <time.h>
 #include <unistd.h>
 
@@ -48,6 +49,7 @@
 #define CAPTURE_PACKETS_PER_SECOND 1000
 #define METRIC_FREQUENCIES 2
 #define TWO_PI 6.28318530717958647692
+#define CONFIGURATION_LOCK_PATH "/run/tascam-uh7000/configuration.lock"
 
 static const double metric_frequencies[METRIC_FREQUENCIES] = {625.0, 1250.0};
 
@@ -100,6 +102,21 @@ struct kernel_driver_state {
 };
 
 static volatile sig_atomic_t stop_requested;
+
+static int acquire_configuration_lock(void) {
+    const int lock_fd = open(CONFIGURATION_LOCK_PATH, O_RDWR | O_CREAT, 0660);
+    if (lock_fd < 0) {
+        fprintf(stderr, "could not open configuration lock %s: %s\n",
+                CONFIGURATION_LOCK_PATH, strerror(errno));
+        return -1;
+    }
+    if (flock(lock_fd, LOCK_EX | LOCK_NB) != 0) {
+        fprintf(stderr, "another UH-7000 configuration-1 stream is active\n");
+        close(lock_fd);
+        return -1;
+    }
+    return lock_fd;
+}
 
 static void request_stop(int signal_number) {
     (void)signal_number;
@@ -460,6 +477,7 @@ int main(int argc, char **argv) {
     int claimed = 0;
     int capture_claimed = 0;
     int configuration_changed = 0;
+    int configuration_lock_fd = -1;
     int result = libusb_init(&usb);
     if (result != 0) {
         fprintf(stderr, "libusb initialization failed: %s\n", libusb_error_name(result));
@@ -470,6 +488,11 @@ int main(int argc, char **argv) {
         fprintf(stderr, "UH-7000 %04x:%04x not found\n", VID, PID);
         libusb_exit(usb);
         return 1;
+    }
+    configuration_lock_fd = acquire_configuration_lock();
+    if (configuration_lock_fd < 0) {
+        result = LIBUSB_ERROR_BUSY;
+        goto cleanup;
     }
     int configuration = 0;
     result = libusb_get_configuration(handle, &configuration);
@@ -711,6 +734,9 @@ cleanup:
     }
     if (restore_failed == 0) {
         restore_failed = reattach_audio_drivers(handle, &kernel_drivers);
+    }
+    if (configuration_lock_fd >= 0) {
+        close(configuration_lock_fd);
     }
     libusb_close(handle);
     libusb_exit(usb);

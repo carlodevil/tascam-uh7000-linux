@@ -1,3 +1,9 @@
+tascam-uh7000-linux (0.2.0~beta22) unstable; urgency=medium
+
+  * Defer hotplug UAC2 selection while a configuration-1 stream owns USB.
+
+ -- carlodevil <64757000+carlodevil@users.noreply.github.com>  Mon, 13 Jul 2026 19:05:00 +0200
+
 tascam-uh7000-linux (0.2.0~beta21) unstable; urgency=medium
 
   * Keep configuration-1 capture active for unbounded duplex endurance probes.
