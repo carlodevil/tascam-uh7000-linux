@@ -64,6 +64,14 @@ The application must fail closed if any step is missing.
 The reproducible Windows evidence and SHA-256 manifest are under
 `research/windows-captures/2026-07-12/`.
 
+The archived `direct-monitor.pcap` was independently rechecked on Linux. It
+contains two 64-byte request-`0x4d` writes, but neither write has a matching
+vendor control read, state-page readback, or distinct endpoint-`0x83` status
+notification. Endpoint `0x83` continues to report recurring meter controls
+only. Direct-monitor state is therefore unknown after any reconnect and must
+remain a hard playback gate; do not infer an off state from a captured `0x4d`
+image or a panel default.
+
 ## Linux wiring baseline
 
 `research/windows-control-fixtures.json` is the machine-readable handoff for
