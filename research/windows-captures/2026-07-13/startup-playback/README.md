@@ -52,11 +52,23 @@ The 25-second capture completed without clipping:
 | 4 | silence | silence | silence | silence | 0 |
 
 Neither the intended 1,250 Hz tone nor the transformed 625 Hz component was
-returned through the analog loop above the noise floor. Therefore this capture
-does **not** validate analog output. It does validate Windows configuration-1
-startup, the vendor initialization sequence, the endpoint cadence, and the
-product-specific source transformation that the Linux implementation must
-model or bypass.
+returned through the same-device analog loop above the noise floor. This means
+the loop capture did not validate the return path; it is not evidence that the
+analog output was silent.
+
+## Audible shared-path follow-up
+
+The loop cable was removed and one speaker was connected to the left output.
+Spotify playback was reported to work normally. A standard Windows shared
+`waveOut` stereo test was then raised gradually from -40 to -20 dBFS, left
+channel only, and the operator confirmed audible output.
+
+USBPcap recorded that known-audible run in
+`working-waveout-artifacts.tar.gz`. Endpoint `0x02` again contained a strongest
+component near 625 Hz with repeated adjacent samples. The final one-second
+USB payload block measured about -25.53 dBFS RMS. This confirms analog output
+operation under the Windows shared audio path while preserving the exact
+configuration-1 stream that Linux must model or bypass.
 
 `startup-playback-artifacts.tar.gz` contains the unmodified packet capture,
 the generated 24-bit source WAV, the recorded 24-bit return WAV, and the
@@ -65,4 +77,10 @@ guarded-run JSON report.
 ```text
 size:   24612885 bytes
 sha256: 0f6322af48235e82cb63c50e9721d99a3eee8c640b545a9ed4be986f4b29c9f9
+```
+
+```text
+working-waveout-artifacts.tar.gz
+size:   7210572 bytes
+sha256: b9ea9fe194820537441464e7c4fdae553d4fbafe8f54321703f8d66259d3b9a7
 ```

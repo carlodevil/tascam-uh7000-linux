@@ -28,3 +28,5 @@ The separate 2026-07-13 startup/playback capture is under
 `research/windows-captures/2026-07-13/startup-playback/`. It records the device
 reconnect, Windows configuration-1 initialization, a guarded channel-1-only
 tone, endpoint `0x02` isochronous traffic, and the Analog Input 2 return.
+It also includes a separate USBPcap trace of an operator-confirmed audible
+Windows shared `waveOut` stereo run.

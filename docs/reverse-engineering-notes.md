@@ -281,8 +281,12 @@ Safe local probes found:
   on endpoint `0x02` in 1,728-byte URBs. A channel-1-only 1,250 Hz guarded
   source appeared in the endpoint payload as adjacent repeated samples with a
   strongest component at 625 Hz, about -69.24 dBFS. Neither 625 Hz nor 1,250 Hz
-  was visible above the Analog Input 2 return noise floor. Raw evidence and
-  decoded metrics are under
+  was visible above the Analog Input 2 return noise floor. A follow-up using
+  the standard Windows shared `waveOut` stereo path at -20 dBFS was audible
+  through a left speaker. Its captured endpoint stream again showed repeated
+  adjacent samples and a strongest component near 625 Hz. Analog output is
+  therefore confirmed under Windows; the failed same-device return was not
+  evidence of a silent output. Raw evidence and decoded metrics are under
   `research/windows-captures/2026-07-13/startup-playback/`.
 
 The helper call-site table can be regenerated from an objdump-style driver

@@ -28,5 +28,16 @@
     "capture_channel_2_1250hz_peak_dbfs": -100.402,
     "clips": 0
   },
-  "conclusion": "Configuration-1 Windows startup and ISO output were captured, but no deterministic analog return tone was observed."
+  "working_waveout_followup": {
+    "path": "Windows shared waveOut stereo",
+    "left_channel_only": true,
+    "ramp_dbfs": [-40, -20],
+    "operator_reported_audible": true,
+    "iso_completed_urbs": 9625,
+    "bytes_per_urb": 1728,
+    "observed_component_hz": 625,
+    "final_usb_payload_rms_dbfs": -25.53,
+    "adjacent_samples_repeated": true
+  },
+  "conclusion": "Windows configuration-1 analog output is audible through the shared audio path. The same-device return capture did not expose a deterministic tone, while USB payloads show a 625 Hz adjacent-sample transformation of the 1250 Hz source."
 }
