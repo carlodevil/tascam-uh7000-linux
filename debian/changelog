@@ -1,3 +1,9 @@
+tascam-uh7000-linux (0.2.0~beta24) unstable; urgency=medium
+
+  * Rate-limit failed UAC2 recovery attempts to prevent USB reconnect churn.
+
+ -- carlodevil <64757000+carlodevil@users.noreply.github.com>  Mon, 13 Jul 2026 19:35:00 +0200
+
 tascam-uh7000-linux (0.2.0~beta23) unstable; urgency=medium
 
   * Refresh the clock-source state from its verified hardware selector.

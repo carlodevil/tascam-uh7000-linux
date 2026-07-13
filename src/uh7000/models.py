@@ -68,7 +68,7 @@ class DeviceStatus(JsonState):
     usb_speed_mbps: int | None = None
     firmware_version: str | None = None
     driver_bound: bool = False
-    package_version: str = "0.2.0b23"
+    package_version: str = "0.2.0b24"
     error: str | None = None
 
 
