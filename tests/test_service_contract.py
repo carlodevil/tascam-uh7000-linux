@@ -48,6 +48,19 @@ class ServiceContractTests(unittest.TestCase):
                 controller.set_clock_source("internal", outputs_disconnected=True)
         self.assertEqual([], transport.writes)
 
+    def test_snapshot_clock_source_refreshes_from_verified_selector(self) -> None:
+        transport = MemoryTransport({(REQUEST_SELECTOR_STATUS, 0, 0, 1): b"\x00"})
+        controller = Controller(transport_factory=lambda: transport)
+        controller._refresh_verified_clock_source(2)
+        self.assertEqual("internal", controller.mixer.clock_source.value)
+
+    def test_snapshot_clock_source_does_not_read_during_vendor_stream(self) -> None:
+        transport = MemoryTransport({(REQUEST_SELECTOR_STATUS, 0, 0, 1): b"\x00"})
+        controller = Controller(transport_factory=lambda: transport)
+        controller._refresh_verified_clock_source(1)
+        self.assertEqual("automatic", controller.mixer.clock_source.value)
+        self.assertEqual([], transport.requests)
+
 
 if __name__ == "__main__":
     unittest.main()

@@ -35,6 +35,7 @@ class Controller:
 
     def snapshot(self) -> dict[str, Any]:
         device = device_status()
+        self._refresh_verified_clock_source(device.usb_configuration)
         topology = inspect_audio()
         loops = pipewire_loopbacks()
         safety = evaluate_preflight(device, topology, self.mixer, loops)
@@ -47,6 +48,26 @@ class Controller:
             "effects": self.effects.to_dict(),
             "safety": safety.to_dict(),
         }
+
+    def _refresh_verified_clock_source(self, usb_configuration: int | None) -> None:
+        """Refresh the only mixer value with a verified hardware readback.
+
+        The D-Bus process outlives CLI invocations, so an in-memory value can
+        otherwise become stale after a direct selector write or service restart.
+        Read errors are intentionally non-fatal for status while the device is
+        absent or configuration 1 owns the vendor interface.
+        """
+        if usb_configuration != 2:
+            return
+        try:
+            observed = ProtocolClockSource(read_selector_status(self.transport_factory()))
+        except (OSError, RuntimeError, ValueError):
+            return
+        self.mixer.clock_source = (
+            MixerClockSource.AUTOMATIC
+            if observed is ProtocolClockSource.AUTOMATIC
+            else MixerClockSource.INTERNAL
+        )
 
     def diagnostics(self) -> dict[str, Any]:
         result = self.snapshot()
