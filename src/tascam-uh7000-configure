@@ -4,6 +4,7 @@ set -eu
 VID="0644"
 PID="8048"
 TARGET_CONFIG="2"
+CONFIGURE_ATTEMPTS="8"
 LOG_TAG="tascam-uh7000"
 
 log() {
@@ -85,12 +86,24 @@ if [ "$num_configs" -lt "$TARGET_CONFIG" ] 2>/dev/null; then
     exit 4
 fi
 
-if [ "$current_config" = "$TARGET_CONFIG" ]; then
-    log "UH-7000 already in USB configuration $TARGET_CONFIG"
-else
-    log "switching UH-7000 at $(basename "$devpath") from USB configuration $current_config to $TARGET_CONFIG"
+attempt=1
+while [ "$current_config" != "$TARGET_CONFIG" ] && [ "$attempt" -le "$CONFIGURE_ATTEMPTS" ]; do
+    log "selecting USB configuration $TARGET_CONFIG at $(basename "$devpath") (attempt $attempt/$CONFIGURE_ATTEMPTS; current $current_config)"
     printf '%s' "$TARGET_CONFIG" > "$devpath/bConfigurationValue"
     sleep 1
+    current_config="$(cat "$devpath/bConfigurationValue" 2>/dev/null || printf '?')"
+    attempt=$((attempt + 1))
+done
+
+if [ "$current_config" != "$TARGET_CONFIG" ]; then
+    log "USB configuration $TARGET_CONFIG did not remain selected after $CONFIGURE_ATTEMPTS attempts (current $current_config)"
+    exit 5
+fi
+
+if [ "$attempt" -eq 1 ]; then
+    log "UH-7000 already in USB configuration $TARGET_CONFIG"
+else
+    log "UH-7000 is in USB configuration $TARGET_CONFIG"
 fi
 
 if command -v modprobe >/dev/null 2>&1; then

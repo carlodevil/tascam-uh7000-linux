@@ -1,3 +1,27 @@
+tascam-uh7000-linux (0.2.0~beta9) unstable; urgency=medium
+
+  * Retry and verify UAC2 selection after USB authorization transitions.
+
+ -- carlodevil <64757000+carlodevil@users.noreply.github.com>  Mon, 13 Jul 2026 16:20:00 +0200
+
+tascam-uh7000-linux (0.2.0~beta8) unstable; urgency=medium
+
+  * Wait for USB reauthorization to settle before selecting UAC2 mode.
+
+ -- carlodevil <64757000+carlodevil@users.noreply.github.com>  Mon, 13 Jul 2026 16:00:00 +0200
+
+tascam-uh7000-linux (0.2.0~beta7) unstable; urgency=medium
+
+  * Schedule hotplug configuration only after USB authorization completes.
+
+ -- carlodevil <64757000+carlodevil@users.noreply.github.com>  Mon, 13 Jul 2026 15:40:00 +0200
+
+tascam-uh7000-linux (0.2.0~beta6) unstable; urgency=medium
+
+  * Reconfigure the device on USB authorization change events.
+
+ -- carlodevil <64757000+carlodevil@users.noreply.github.com>  Mon, 13 Jul 2026 15:20:00 +0200
+
 tascam-uh7000-linux (0.2.0~beta5) unstable; urgency=medium
 
   * Refuse clock-control writes while analog playback owns configuration 1.

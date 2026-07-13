@@ -108,6 +108,20 @@ Beta5 refuses clock-source writes unless configuration 2 is active. Read-only
 status remains available with the PipeWire analog sink enabled, but disable the
 sink before any control-plane write that can interrupt the stream.
 
+Beta6 also handles USB `change` events. This covers device reauthorization,
+which otherwise restores configuration 1 without emitting the physical-hotplug
+`add` event. The configure helper remains idempotent when configuration 2 is
+already selected.
+
+Beta7 limits those rules to `authorized=1`; a deauthorization also emits a
+change event, but cannot safely select a USB configuration. Reauthorization is
+therefore the event that starts the idempotent configuration helper.
+
+Beta9 verifies that configuration 2 remains selected after every write and
+retries it for up to eight seconds. Reauthorization can emit an available-device
+event before firmware has settled on configuration 1, so a single write cannot
+be treated as a successful hotplug recovery.
+
 ## Clock-source control
 
 With all physical outputs still disconnected, the persistent control path is:

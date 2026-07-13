@@ -31,6 +31,10 @@ grep -q 'usb:v0644p8048d\*' metainfo/io.github.carlodevil.tascam_uh7000_linux.me
 grep -q 'TAG+="uaccess"' udev/90-tascam-uh7000.rules
 grep -q 'GROUP="audio"' udev/90-tascam-uh7000.rules
 grep -q 'MODE="0660"' udev/90-tascam-uh7000.rules
+grep -q 'ACTION=="change"' udev/90-tascam-uh7000.rules
+grep -q 'ATTR{authorized}=="1"' udev/90-tascam-uh7000.rules
+grep -q 'CONFIGURE_ATTEMPTS="8"' src/tascam-uh7000-configure
+grep -q 'did not remain selected' src/tascam-uh7000-configure
 grep -q 'udevadm trigger --action=add' debian/tascam-uh7000-linux.postinst
 grep -q -- '--attr-match=idVendor=0644' debian/tascam-uh7000-linux.postinst
 grep -q -- '--attr-match=idProduct=8048' debian/tascam-uh7000-linux.postinst
