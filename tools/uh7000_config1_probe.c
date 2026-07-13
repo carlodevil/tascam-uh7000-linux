@@ -26,6 +26,8 @@
 #define CHANNELS 2
 #define BYTES_PER_SAMPLE 3
 #define PACKET_BYTES (FRAMES_PER_PACKET * CHANNELS * BYTES_PER_SAMPLE)
+#define PACKETS_PER_TRANSFER 6
+#define TRANSFER_BYTES (PACKET_BYTES * PACKETS_PER_TRANSFER)
 #define TWO_PI 6.28318530717958647692
 
 struct stream_context {
@@ -37,8 +39,7 @@ struct stream_context {
     int failed;
 };
 
-static void fill_packet(struct stream_context *stream) {
-    unsigned char *data = stream->transfer->buffer;
+static void fill_audio_packet(struct stream_context *stream, unsigned char *data) {
     for (unsigned int frame = 0; frame < FRAMES_PER_PACKET; ++frame) {
         const int32_t sample = (int32_t)(0.0316227766 * 8388607.0 * sin(stream->phase));
         stream->phase += stream->phase_step;
@@ -54,6 +55,12 @@ static void fill_packet(struct stream_context *stream) {
     }
 }
 
+static void fill_transfer(struct stream_context *stream) {
+    for (unsigned int packet = 0; packet < PACKETS_PER_TRANSFER; ++packet) {
+        fill_audio_packet(stream, stream->transfer->buffer + packet * PACKET_BYTES);
+    }
+}
+
 static void LIBUSB_CALL transfer_complete(struct libusb_transfer *transfer) {
     struct stream_context *stream = transfer->user_data;
     if (transfer->status != LIBUSB_TRANSFER_COMPLETED) {
@@ -61,11 +68,11 @@ static void LIBUSB_CALL transfer_complete(struct libusb_transfer *transfer) {
         stream->failed = 1;
         return;
     }
-    ++stream->packets_sent;
+    stream->packets_sent += PACKETS_PER_TRANSFER;
     if (stream->packets_sent >= stream->packet_limit) {
         return;
     }
-    fill_packet(stream);
+    fill_transfer(stream);
     if (libusb_submit_transfer(transfer) != 0) {
         fprintf(stderr, "could not resubmit isochronous transfer\n");
         stream->failed = 1;
@@ -141,18 +148,19 @@ int main(int argc, char **argv) {
         fprintf(stderr, "failed to allocate isochronous transfer\n");
         goto cleanup;
     }
-    unsigned char *buffer = calloc(1, PACKET_BYTES);
+    unsigned char *buffer = calloc(1, TRANSFER_BYTES);
     if (!buffer) {
         fprintf(stderr, "failed to allocate isochronous buffer\n");
         goto cleanup;
     }
     stream.packet_limit = duration_seconds * 1000UL;
     stream.phase_step = TWO_PI * 1250.0 / SAMPLE_RATE;
-    libusb_fill_iso_transfer(stream.transfer, handle, STREAM_ENDPOINT, buffer, PACKET_BYTES, 1,
+    libusb_fill_iso_transfer(stream.transfer, handle, STREAM_ENDPOINT, buffer, TRANSFER_BYTES,
+                             PACKETS_PER_TRANSFER,
                              transfer_complete, &stream, 1000);
     stream.transfer->flags = LIBUSB_TRANSFER_FREE_BUFFER;
     libusb_set_iso_packet_lengths(stream.transfer, PACKET_BYTES);
-    fill_packet(&stream);
+    fill_transfer(&stream);
     result = libusb_submit_transfer(stream.transfer);
     if (result != 0) {
         fprintf(stderr, "failed to submit isochronous transfer: %s\n", libusb_error_name(result));
