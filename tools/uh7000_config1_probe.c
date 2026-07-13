@@ -261,7 +261,7 @@ static void LIBUSB_CALL capture_complete(struct libusb_transfer *transfer) {
         }
     }
     capture->packets_received += CAPTURE_PACKETS_PER_TRANSFER;
-    if (capture->packets_received >= capture->packet_limit) {
+    if (capture->packet_limit && capture->packets_received >= capture->packet_limit) {
         capture->active = 0;
         return;
     }
@@ -564,7 +564,7 @@ int main(int argc, char **argv) {
     }
     stream.packet_limit = duration_seconds ? duration_seconds * PACKETS_PER_SECOND : 0;
     stream.feedback_frames_per_packet = NOMINAL_FRAMES_PER_PACKET;
-    capture.packet_limit = output_only ? 0 :
+    capture.packet_limit = (output_only || duration_seconds == 0) ? 0 :
         duration_seconds * CAPTURE_PACKETS_PER_SECOND + CAPTURE_PACKETS_PER_TRANSFER;
     stream.phase_step = TWO_PI * 1250.0 / SAMPLE_RATE;
     libusb_fill_iso_transfer(stream.transfer, handle, STREAM_ENDPOINT, buffer, TRANSFER_BYTES,
