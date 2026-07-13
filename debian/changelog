@@ -1,3 +1,10 @@
+tascam-uh7000-linux (0.2.0~beta12) unstable; urgency=medium
+
+  * Declare pkg-config for native libusb stream builds.
+  * Record the tested upgrade path from legacy 0.1.34.
+
+ -- carlodevil <64757000+carlodevil@users.noreply.github.com>  Mon, 13 Jul 2026 17:00:00 +0200
+
 tascam-uh7000-linux (0.2.0~beta11) unstable; urgency=medium
 
   * Require a rendered offscreen panel frame in continuous integration.

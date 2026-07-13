@@ -24,7 +24,7 @@ jobs:
         run: |
           apt-get update
           apt-get install -y --no-install-recommends \
-            bash-completion devscripts dpkg-dev fonts-dejavu-core lintian \
+            bash-completion devscripts dpkg-dev fonts-dejavu-core lintian pkg-config \
             pybuild-plugin-pyproject python3-all python3-dbus-next python3-pytest python3-venv \
             python3-pyside6.qtcore python3-pyside6.qtdbus python3-pyside6.qtgui \
             python3-pyside6.qtqml python3-pyside6.qtquick \

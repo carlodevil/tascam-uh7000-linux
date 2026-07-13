@@ -2,14 +2,14 @@
 
 ## Hardware-free
 
-- [ ] `python3 -m compileall -q src tests tools`
-- [ ] `PYTHONPATH=src python3 -m unittest discover -s tests -v`
-- [ ] Debian 13 `dpkg-buildpackage -us -uc -b`
-- [ ] `lintian --tag-display-limit 0 ../tascam-uh7000-linux_*.deb`
-- [ ] package install, upgrade from 0.1.34, and purge tests
+- [x] `python3 -m compileall -q src tests tools`
+- [x] `PYTHONPATH=src python3 -m unittest discover -s tests -v`
+- [x] Debian 13 `dpkg-buildpackage -us -uc -b`
+- [x] `lintian --tag-display-limit 0 ../tascam-uh7000-linux_*.deb`
+- [x] package install, upgrade from 0.1.34, and purge/reinstall tests
 - [x] package reinstall and user-service restart on Debian 13
-- [ ] offscreen Qt Interface/Mixer/Effects rendering test
-- [ ] no research-only `0x42`, `0x4d`, or `0x55` write command in the package
+- [x] offscreen Qt Interface/Mixer/Effects rendering test
+- [x] no research-only `0x42`, `0x4d`, or `0x55` write command in the package
 - [x] isolated Windows captures recorded for clock, mode, monitor and routing controls
 - [x] request `0x49` clock values have symmetric Windows readback and rollback evidence
 

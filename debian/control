@@ -9,6 +9,7 @@ Build-Depends:
  python3-all,
  python3-pytest,
  python3-setuptools,
+ pkg-config,
  libusb-1.0-0-dev,
 Standards-Version: 4.7.0
 Homepage: https://github.com/carlodevil/tascam-uh7000-linux
