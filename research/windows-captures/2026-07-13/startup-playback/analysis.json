@@ -1,0 +1,32 @@
+{
+  "schema": "io.github.carlodevil.UH7000.StartupPlaybackCapture.v1",
+  "windows": "Microsoft Windows 11 Home Single Language 10.0.26100 build 26100",
+  "driver_version": "1.02",
+  "firmware_version": "1.08",
+  "usb_configuration": 1,
+  "usb_device_address": 6,
+  "iso_output": {
+    "endpoint": "0x02",
+    "completed_urbs": 28417,
+    "bytes_per_urb": 1728,
+    "decoded_channels": 2,
+    "decoded_format": "S24_3LE",
+    "stream_duration_seconds": 170.502,
+    "intended_tone_hz": 1250,
+    "intended_hold_peak_dbfs": -60.0,
+    "observed_component_hz": 625,
+    "observed_component_peak_dbfs": -69.24,
+    "adjacent_samples_repeated": true
+  },
+  "guarded_playback": {
+    "duration_seconds": 25.0,
+    "abort_reason": null,
+    "mixer_channel_2_changed": false,
+    "capture_channel_2_peak_dbfs": -62.38964590379052,
+    "capture_channel_2_rms_dbfs": -76.46447710942435,
+    "capture_channel_2_625hz_peak_dbfs": -119.947,
+    "capture_channel_2_1250hz_peak_dbfs": -100.402,
+    "clips": 0
+  },
+  "conclusion": "Configuration-1 Windows startup and ISO output were captured, but no deterministic analog return tone was observed."
+}

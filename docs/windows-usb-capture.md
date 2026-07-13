@@ -23,3 +23,8 @@ Captured transitions:
 Run `tools/parse_usbpcap.py` against the extracted archive to reproduce the
 vendor-control summary. Do not replay `0x4d` or `0x54` payloads: they are full
 state images and have no verified readback on firmware 1.08.
+
+The separate 2026-07-13 startup/playback capture is under
+`research/windows-captures/2026-07-13/startup-playback/`. It records the device
+reconnect, Windows configuration-1 initialization, a guarded channel-1-only
+tone, endpoint `0x02` isochronous traffic, and the Analog Input 2 return.

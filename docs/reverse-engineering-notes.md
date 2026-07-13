@@ -275,6 +275,15 @@ Safe local probes found:
   important finding is that Windows does product-specific output preparation in
   the USB driver while Linux currently relies on the standard class-driver
   path for configuration `2`.
+- A full-controller Windows startup/playback capture now confirms the product
+  driver selects configuration `1`, sends the `0x49`/`0x54`/`0x4d`/`0x42` and
+  five-write `0x41` initialization sequence, then submits stereo S24_3LE data
+  on endpoint `0x02` in 1,728-byte URBs. A channel-1-only 1,250 Hz guarded
+  source appeared in the endpoint payload as adjacent repeated samples with a
+  strongest component at 625 Hz, about -69.24 dBFS. Neither 625 Hz nor 1,250 Hz
+  was visible above the Analog Input 2 return noise floor. Raw evidence and
+  decoded metrics are under
+  `research/windows-captures/2026-07-13/startup-playback/`.
 
 The helper call-site table can be regenerated from an objdump-style driver
 disassembly:

@@ -50,8 +50,10 @@ A write can be promoted only after:
 
 The application must fail closed if any step is missing.
 
-The reproducible Windows evidence and SHA-256 manifest are under
-`research/windows-captures/2026-07-12/`.
+The reproducible Windows evidence and SHA-256 manifests are under
+`research/windows-captures/2026-07-12/` and
+`research/windows-captures/2026-07-13/`. The latter also contains the separate
+configuration-1 startup/ISO playback capture.
 
 ## Linux wiring baseline
 

@@ -11,6 +11,7 @@
 - [ ] offscreen Qt Interface/Mixer/Effects rendering test
 - [ ] no research-only `0x42`, `0x4d`, or `0x55` write command in the package
 - [x] isolated Windows captures recorded for clock, mode, monitor and routing controls
+- [x] Windows configuration-1 startup and guarded ISO playback capture recorded
 - [x] request `0x49` clock values have symmetric Windows readback and rollback evidence
 
 ## Native device
