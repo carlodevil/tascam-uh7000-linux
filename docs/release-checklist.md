@@ -31,7 +31,7 @@
 
 - [ ] current legacy main tip tagged `legacy-0.1.34`
 - [ ] draft PR documents the feedback-loop root cause and safety change
-- [ ] GitHub Actions succeeds on Debian 13
+- [x] GitHub Actions succeeds on Debian 13
 - [ ] `v0.2.0-beta.1` release contains `.deb` and `SHA256SUMS`
 - [ ] stable release deferred until two additional UH-7000 systems validate duplex audio
 # Windows-derived control evidence
