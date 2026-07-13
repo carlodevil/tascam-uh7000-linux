@@ -139,6 +139,17 @@ dBFS. The probe completed without clipping and restored configuration 2 with
 Input 2 path only; it does not characterize all UAC2 playback channels or
 unlock direct-monitor-dependent guarded tests.
 
+Beta21 kept capture active for unbounded duplex probes and recorded a second
+physical analog mapping. With the user-reported Right Line Output patched to
+Analog Input 1, Input 1 gain at maximum, and all speakers/headphones
+disconnected, the same two-second stereo 1,250 Hz probe returned only on
+capture channel 1. Channel 1 measured -0.36 dBFS RMS, so the input was at the
+clipping threshold and was immediately returned to minimum gain. Channel 2
+remained at -89.13 dBFS RMS with no matching tone. The stream completed and
+the device restored configuration 2 with `snd_usb_audio` bound. This validates
+the second configuration-1 analog output/input path, but does not identify the
+four configuration-2 UAC2 playback-channel routes.
+
 ## Clock-source control
 
 With all physical outputs still disconnected, the persistent control path is:
