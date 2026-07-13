@@ -7,6 +7,7 @@ import argparse
 import json
 import struct
 from pathlib import Path
+from typing import Any
 
 
 def control_transfers(path: Path, device: int = 1) -> list[dict[str, object]]:
@@ -45,12 +46,49 @@ def control_transfers(path: Path, device: int = 1) -> list[dict[str, object]]:
     return transfers
 
 
+def vendor_requests(path: Path, device: int = 1) -> list[dict[str, Any]]:
+    """Return decoded vendor requests, pairing IN setup packets with responses."""
+
+    requests: list[dict[str, Any]] = []
+    pending_in: dict[str, Any] | None = None
+    for event in control_transfers(path, device):
+        payload = bytes.fromhex(str(event["payload"]))
+        if len(payload) >= 8 and payload[0] in {0x40, 0xC0}:
+            setup = payload[:8]
+            length = int.from_bytes(setup[6:8], "little")
+            request: dict[str, Any] = {
+                "seconds": event["seconds"],
+                "direction": "in" if setup[0] & 0x80 else "out",
+                "request": f"0x{setup[1]:02x}",
+                "value": f"0x{int.from_bytes(setup[2:4], 'little'):04x}",
+                "index": f"0x{int.from_bytes(setup[4:6], 'little'):04x}",
+                "length": length,
+            }
+            if request["direction"] == "out":
+                request["data"] = payload[8 : 8 + length].hex()
+            else:
+                request["response"] = None
+                pending_in = request
+            requests.append(request)
+            continue
+        if pending_in is not None and event["endpoint"] == "0x80" and event["stage"] == 3:
+            pending_in["response"] = payload.hex()
+            pending_in = None
+    return requests
+
+
 def main() -> int:
     parser = argparse.ArgumentParser()
     parser.add_argument("captures", type=Path, nargs="+")
     parser.add_argument("--device", type=int, default=1)
+    parser.add_argument(
+        "--vendor-only",
+        action="store_true",
+        help="decode only vendor requests and pair control-IN responses",
+    )
     args = parser.parse_args()
-    result = {path.name: control_transfers(path, args.device) for path in args.captures}
+    reader = vendor_requests if args.vendor_only else control_transfers
+    result = {path.name: reader(path, args.device) for path in args.captures}
     print(json.dumps(result, indent=2, sort_keys=True))
     return 0
 
