@@ -130,6 +130,15 @@ was -84.45 dBFS on channel 1 and -76.55 dBFS on channel 2; the device then
 returned to configuration 2 with `snd_usb_audio` bound. This validates silent
 duplex transport, not physical analog routing.
 
+Beta19 fixed the finite duplex lifetime so capture stops with the bounded
+output stream. With speakers and headphones disconnected, Left Line Output
+patched to Analog Input 2, and Input 2 gain at maximum, a two-second -30 dBFS
+1,250 Hz probe returned on capture channel 2 at -74.71 dBFS with RMS -46.60
+dBFS. The probe completed without clipping and restored configuration 2 with
+`snd_usb_audio` bound. This proves the configuration-1 analog left-output to
+Input 2 path only; it does not characterize all UAC2 playback channels or
+unlock direct-monitor-dependent guarded tests.
+
 ## Clock-source control
 
 With all physical outputs still disconnected, the persistent control path is:

@@ -115,7 +115,7 @@ pytest
 ## Install and inspect
 
 ```sh
-sudo apt install ../tascam-uh7000-linux_0.2.0~beta19_amd64.deb
+sudo apt install ../tascam-uh7000-linux_0.2.0~beta20_amd64.deb
 uh7000ctl --json status
 uh7000ctl --json topology
 uh7000ctl --json diagnostics
