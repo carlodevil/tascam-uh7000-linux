@@ -275,6 +275,15 @@ Safe local probes found:
   important finding is that Windows does product-specific output preparation in
   the USB driver while Linux currently relies on the standard class-driver
   path for configuration `2`.
+- A Windows baseline capture confirms that the product driver selects vendor
+  configuration `1` for the UH-7000 analog stream. Its endpoint `0x02`
+  transfers are stereo S24_3LE: 48 frames are 288 bytes, and Windows batches
+  six packets into 1728-byte isochronous URBs. The UAC2 configuration `2`
+  playback terminal is instead declared as a Digital Audio Interface. The
+  uninstalled `tools/uh7000_config1_probe.c` mirrors the captured packet
+  cadence, is dry-run by default, and restores configuration `2` after a
+  bounded analog-path test. It remains experimental until a physical loopback
+  verifies analog output and capture.
 
 The helper call-site table can be regenerated from an objdump-style driver
 disassembly:
