@@ -4,7 +4,7 @@ set -eu
 ROOT_DIR="$(CDPATH='' cd -- "$(dirname -- "$0")/.." && pwd)"
 cd "$ROOT_DIR"
 
-sh -n src/tascam-uh7000-configure scripts/build-deb.sh scripts/ci-smoke.sh
+sh -n src/tascam-uh7000-configure src/tascam-uh7000-pipewire src/uh7000-pipewire scripts/build-deb.sh scripts/ci-smoke.sh
 bash -n completions/uh7000ctl
 python3 -m compileall -q src tests tools
 PYTHONPATH=src python3 -m unittest discover -s tests -v
@@ -34,6 +34,8 @@ grep -q 'MODE="0660"' udev/90-tascam-uh7000.rules
 grep -q 'udevadm trigger --action=add' debian/tascam-uh7000-linux.postinst
 grep -q -- '--attr-match=idVendor=0644' debian/tascam-uh7000-linux.postinst
 grep -q -- '--attr-match=idProduct=8048' debian/tascam-uh7000-linux.postinst
+grep -q 'module-pipe-sink' src/tascam-uh7000-pipewire
+grep -q 'uh7000-stream.service' src/tascam-uh7000-pipewire
 
 if grep -Eq 'quiet|suppress-noise|f800-upload|f800-restore|control-plan' completions/uh7000ctl; then
     echo 'research-only commands leaked into installed completion' >&2

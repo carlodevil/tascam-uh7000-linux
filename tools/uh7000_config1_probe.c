@@ -160,6 +160,10 @@ static void fill_transfer(struct stream_context *stream) {
 static void LIBUSB_CALL transfer_complete(struct libusb_transfer *transfer) {
     struct stream_context *stream = transfer->user_data;
     if (transfer->status != LIBUSB_TRANSFER_COMPLETED) {
+        if (stop_requested && transfer->status == LIBUSB_TRANSFER_CANCELLED) {
+            stream->active = 0;
+            return;
+        }
         fprintf(stderr, "isochronous transfer failed with status %d\n", transfer->status);
         stream->failed = 1;
         stream->active = 0;
@@ -182,6 +186,10 @@ static void LIBUSB_CALL transfer_complete(struct libusb_transfer *transfer) {
 static void LIBUSB_CALL capture_complete(struct libusb_transfer *transfer) {
     struct capture_context *capture = transfer->user_data;
     if (transfer->status != LIBUSB_TRANSFER_COMPLETED) {
+        if (stop_requested && transfer->status == LIBUSB_TRANSFER_CANCELLED) {
+            capture->active = 0;
+            return;
+        }
         fprintf(stderr, "capture isochronous transfer failed with status %d\n", transfer->status);
         capture->failed = 1;
         capture->active = 0;
@@ -357,6 +365,10 @@ int main(int argc, char **argv) {
         return 0;
     }
 
+    /* Install termination handling before changing USB configuration. */
+    signal(SIGINT, request_stop);
+    signal(SIGTERM, request_stop);
+
     libusb_context *usb = NULL;
     libusb_device_handle *handle = NULL;
     struct stream_context stream = {0};
@@ -395,6 +407,9 @@ int main(int argc, char **argv) {
         }
     }
     configuration_changed = 1;
+    if (stop_requested) {
+        goto cleanup;
+    }
     result = detach_audio_drivers(handle, &kernel_drivers, 0, preserve_capture);
     if (result != 0) {
         goto cleanup;
@@ -495,14 +510,15 @@ int main(int argc, char **argv) {
         goto cleanup;
     }
     stream.active = 1;
-    signal(SIGINT, request_stop);
-    signal(SIGTERM, request_stop);
     while (!stop_requested && !stream.failed && !capture.failed &&
-           (stream.packet_limit == 0 || stream.packets_sent < stream.packet_limit ||
-            capture.packets_received < capture.packet_limit)) {
+           ((stream.active &&
+             (stream.packet_limit == 0 || stream.packets_sent < stream.packet_limit)) ||
+            (capture.active && capture.packets_received < capture.packet_limit))) {
         struct timeval timeout = {.tv_sec = 1, .tv_usec = 0};
         result = libusb_handle_events_timeout_completed(usb, &timeout, NULL);
-        if (result != 0 && result != LIBUSB_ERROR_INTERRUPTED) {
+        if (result == LIBUSB_ERROR_INTERRUPTED) {
+            result = 0;
+        } else if (result != 0) {
             fprintf(stderr, "libusb event loop failed: %s\n", libusb_error_name(result));
             stream.failed = 1;
         }

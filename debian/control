@@ -34,7 +34,7 @@ Depends:
  qml6-module-qtquick-controls,
  qml6-module-qtquick-layouts,
  udev,
-Recommends: alsa-utils, pipewire, wireplumber
+Recommends: alsa-utils, pipewire, pipewire-pulse, pulseaudio-utils, wireplumber
 Description: unofficial Linux control panel for the TASCAM UH-7000
  Selects the UH-7000 USB Audio 2.0 configuration on hotplug and registers the
  device with the stock snd_usb_audio driver. Provides a per-user control

@@ -1,0 +1,45 @@
+.TH UH7000-PIPEWIRE 1 "July 2026" "tascam-uh7000-linux" "User Commands"
+.SH NAME
+uh7000-pipewire \- expose UH-7000 analog playback as a PipeWire sink
+.SH SYNOPSIS
+.B uh7000-pipewire
+.RB { enable | disable | set-default | status }
+.SH DESCRIPTION
+.B uh7000-pipewire
+creates the per-user PipeWire-Pulse virtual sink
+.B uh7000-analog
+and directs its stereo 48 kHz S24_3LE PCM FIFO to
+.BR uh7000-stream (1).
+The hardware remains in vendor configuration 1 while the sink is active.
+.B disable
+stops the stream and returns the device to its normal USB Audio 2.0
+configuration 2 card.
+.SH COMMANDS
+.TP
+.B enable
+Create the virtual sink and start the stream service. The default desktop sink
+is not changed.
+.TP
+.B set-default
+Enable the sink and select it as the current PipeWire-Pulse default.
+.TP
+.B disable
+Remove the virtual sink and stop the configuration-1 stream.
+.TP
+.B status
+Report whether both the sink and stream service are active.
+.SH REQUIREMENTS
+Requires a running PipeWire-Pulse session and the
+.B pactl
+utility. The package recommends
+.B pipewire-pulse
+and
+.BR pulseaudio-utils .
+.SH SAFETY
+The normal configuration-2 control service remains available for read-only
+state while the stream is active, but switching clock source or using the UAC2
+card should be done only after disabling the analog sink. Disconnect speakers
+and headphones before diagnostic tones or first-use routing checks.
+.SH SEE ALSO
+.BR uh7000-stream (1),
+.BR uh7000ctl (1)

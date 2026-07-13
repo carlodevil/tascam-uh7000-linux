@@ -1,0 +1,2 @@
+#!/bin/sh
+exec /usr/libexec/tascam-uh7000/tascam-uh7000-pipewire "$@"

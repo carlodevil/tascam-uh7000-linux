@@ -54,9 +54,18 @@ uh7000-stream --seconds 2 --execute
 
 The local analog loopback validation returned a generated 1250 Hz stream on
 Analog Input 2 at -1.75 dBFS. It is therefore a real analog-output path, not
-an ALSA routing plan. The backend currently does not register itself as the
-desktop's default PipeWire sink; keep desktop audio directed to it explicitly
-until that sink integration has completed the reconnect/endurance tests.
+an ALSA routing plan. On PipeWire-Pulse desktops, the packaged per-user bridge
+provides an opt-in virtual sink:
+
+```sh
+uh7000-pipewire enable
+uh7000-pipewire set-default
+# Later: uh7000-pipewire disable
+```
+
+The bridge creates `uh7000-analog`, a stereo 48 kHz sink backed by the same
+configuration-1 stream. Disable it before using UAC2 playback or changing
+controls that require the normal configuration-2 card.
 
 ## Safety model
 
@@ -84,6 +93,7 @@ by more than 12 dB in one 100 ms guard window.
   inspection
 - `tascam-uh7000-configure`: root-only UAC2 hot-plug helper
 - `uh7000-stream`: explicit configuration-1 analog playback backend
+- `uh7000-pipewire`: opt-in PipeWire-Pulse analog sink manager
 - UCM2 and WirePlumber profiles with stable UH-7000 naming
 
 ## Build on Debian 13
@@ -105,7 +115,7 @@ pytest
 ## Install and inspect
 
 ```sh
-sudo apt install ../tascam-uh7000-linux_0.2.0~beta2_amd64.deb
+sudo apt install ../tascam-uh7000-linux_0.2.0~beta3_amd64.deb
 uh7000ctl --json status
 uh7000ctl --json topology
 uh7000ctl --json diagnostics

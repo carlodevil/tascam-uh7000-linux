@@ -1,0 +1,145 @@
+#!/bin/sh
+set -eu
+
+SINK_NAME="uh7000-analog"
+RUNTIME_DIR="${XDG_RUNTIME_DIR:?XDG_RUNTIME_DIR is required}"
+FIFO="$RUNTIME_DIR/$SINK_NAME.pcm"
+MODULE_FILE="$RUNTIME_DIR/$SINK_NAME.module"
+DEFAULT_FILE="$RUNTIME_DIR/$SINK_NAME.default"
+SERVICE="uh7000-stream.service"
+
+usage() {
+    cat <<'EOF'
+Usage: uh7000-pipewire {enable|disable|set-default|status}
+
+Creates a PipeWire-Pulse virtual sink named uh7000-analog backed by the
+verified UH-7000 configuration-1 analog output stream. It is per-user and
+temporary: disable it to return to the normal UAC2 configuration-2 card.
+EOF
+}
+
+require_pulse() {
+    if ! command -v pactl >/dev/null 2>&1 || ! pactl info >/dev/null 2>&1; then
+        echo "PipeWire-Pulse (pactl) is not available in this user session" >&2
+        exit 1
+    fi
+}
+
+module_loaded() {
+    [ -s "$MODULE_FILE" ] && pactl list short modules | awk -v id="$(cat "$MODULE_FILE")" '$1 == id { found = 1 } END { exit !found }'
+}
+
+sink_exists() {
+    pactl list short sinks | awk -v name="$1" '$2 == name { found = 1 } END { exit !found }'
+}
+
+device_in_configuration_one() {
+    for device in /sys/bus/usb/devices/*; do
+        [ "$(cat "$device/idVendor" 2>/dev/null || true)" = "0644" ] || continue
+        [ "$(cat "$device/idProduct" 2>/dev/null || true)" = "8048" ] || continue
+        [ "$(cat "$device/bConfigurationValue" 2>/dev/null || true)" = "1" ] && return 0
+    done
+    return 1
+}
+
+enable() {
+    require_pulse
+    if module_loaded; then
+        echo "$SINK_NAME is already enabled"
+        return 0
+    fi
+    rm -f "$MODULE_FILE" "$FIFO"
+    pactl get-default-sink > "$DEFAULT_FILE"
+    mkfifo -m 600 "$FIFO"
+
+    # Opening a FIFO can block until PipeWire opens the writer, so do not make
+    # the control command wait for systemd's ExecStart handshake.
+    systemctl --user start --no-block "$SERVICE"
+    module_id="$(pactl load-module module-pipe-sink \
+        "file=$FIFO sink_name=$SINK_NAME format=s24le rate=48000 channels=2 use_system_clock_for_timing=no")" || {
+        systemctl --user stop "$SERVICE" || true
+        rm -f "$FIFO"
+        exit 1
+    }
+    printf '%s\n' "$module_id" > "$MODULE_FILE"
+    for _ in 1 2 3 4 5; do
+        if systemctl --user is-active --quiet "$SERVICE" && device_in_configuration_one; then
+            echo "$SINK_NAME enabled"
+            return 0
+        fi
+        sleep 1
+    done
+    pactl unload-module "$module_id" || true
+    rm -f "$MODULE_FILE" "$DEFAULT_FILE" "$FIFO"
+    systemctl --user stop "$SERVICE" || true
+    echo "UH-7000 stream service did not start" >&2
+    exit 1
+}
+
+disable() {
+    original_sink=""
+    if [ -s "$DEFAULT_FILE" ]; then
+        original_sink="$(cat "$DEFAULT_FILE")"
+    fi
+    if [ "$(pactl get-default-sink 2>/dev/null || true)" = "$SINK_NAME" ]; then
+        fallback_sink="$(pactl list short sinks | awk -v sink="$SINK_NAME" '$2 != sink { print $2; exit }')"
+        if [ -n "$fallback_sink" ]; then
+            pactl set-default-sink "$fallback_sink"
+        fi
+    fi
+    if [ -s "$MODULE_FILE" ]; then
+        pactl unload-module "$(cat "$MODULE_FILE")" 2>/dev/null || true
+    fi
+    rm -f "$MODULE_FILE"
+    for _ in 1 2 3 4 5; do
+        systemctl --user is-active --quiet "$SERVICE" || break
+        sleep 1
+    done
+    systemctl --user stop "$SERVICE" 2>/dev/null || true
+    rm -f "$FIFO"
+    if [ -n "$original_sink" ]; then
+        for _ in 1 2 3 4 5; do
+            if sink_exists "$original_sink"; then
+                pactl set-default-sink "$original_sink"
+                break
+            fi
+            sleep 1
+        done
+    fi
+    rm -f "$DEFAULT_FILE"
+    echo "$SINK_NAME disabled"
+}
+
+status() {
+    require_pulse
+    if module_loaded && systemctl --user is-active --quiet "$SERVICE"; then
+        printf '%s active\n' "$SINK_NAME"
+        return 0
+    fi
+    printf '%s inactive\n' "$SINK_NAME"
+    return 3
+}
+
+case "${1:-}" in
+    enable)
+        enable
+        ;;
+    disable)
+        disable
+        ;;
+    set-default)
+        enable
+        pactl set-default-sink "$SINK_NAME"
+        echo "$SINK_NAME is the default sink"
+        ;;
+    status)
+        status
+        ;;
+    -h|--help|help)
+        usage
+        ;;
+    *)
+        usage >&2
+        exit 2
+        ;;
+esac

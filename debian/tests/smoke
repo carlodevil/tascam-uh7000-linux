@@ -4,9 +4,11 @@ set -eu
 uh7000ctl --json status >/tmp/uh7000-status.json
 uh7000ctl --json playback-plan >/tmp/uh7000-playback-plan.json
 uh7000-stream --stdin --seconds 0 >/tmp/uh7000-stream-plan.txt
+uh7000-pipewire --help >/tmp/uh7000-pipewire-help.txt
 grep -q 'io.github.carlodevil.UH7000.State.v1' /tmp/uh7000-status.json
 grep -q '"channel": 4' /tmp/uh7000-playback-plan.json
 test -f /usr/share/applications/io.github.carlodevil.UH7000.desktop
 test -f /usr/share/dbus-1/services/io.github.carlodevil.UH7000.Control1.service
 test -f /usr/share/alsa/ucm2/UH7000/HiFi.conf
 grep -q 'stereo S24_3LE stdin' /tmp/uh7000-stream-plan.txt
+grep -q 'uh7000-analog' /tmp/uh7000-pipewire-help.txt

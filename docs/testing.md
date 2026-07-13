@@ -69,6 +69,23 @@ Record the pre/post `uh7000ctl --json topology` result, command exit status,
 and any USB errors. Long-running playback and default PipeWire-sink integration
 remain release gates.
 
+## PipeWire-Pulse bridge
+
+The optional per-user bridge creates a virtual `uh7000-analog` sink. It keeps
+the hardware in configuration 1 only while enabled and returns it to
+configuration 2 on disable:
+
+```sh
+uh7000-pipewire enable
+pactl list short sinks | grep uh7000-analog
+uh7000-pipewire disable
+uh7000ctl --json topology
+```
+
+Use `uh7000-pipewire set-default` only after the enable/disable sequence is
+clean. Capture the output of `systemctl --user status uh7000-stream.service`
+and confirm configuration 2 plus `uh7000d` recovery after disable.
+
 ## Clock-source control
 
 With all physical outputs still disconnected, the persistent control path is:

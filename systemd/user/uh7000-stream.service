@@ -1,0 +1,14 @@
+[Unit]
+Description=UH-7000 configuration-1 analog playback stream
+After=pipewire-pulse.service
+Requires=pipewire-pulse.service
+
+[Service]
+Type=simple
+ExecStart=/usr/bin/uh7000-stream --stdin --seconds 0 --execute
+StandardInput=file:%t/uh7000-analog.pcm
+StandardOutput=journal
+StandardError=journal
+Restart=on-failure
+RestartSec=1
+
