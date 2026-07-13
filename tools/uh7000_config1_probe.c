@@ -616,10 +616,11 @@ int main(int argc, char **argv) {
         goto cleanup;
     }
     stream.active = 1;
-    while (!stop_requested && !stream.failed && !capture.failed &&
-           ((stream.active &&
-             (stream.packet_limit == 0 || stream.packets_sent < stream.packet_limit)) ||
-            (capture.active && capture.packets_received < capture.packet_limit))) {
+    /* A duplex probe is bounded by the output stream. Continuing capture after
+     * a finite output stream ends can leave the vendor capture endpoint active
+     * indefinitely when it stops producing packets. */
+    while (!stop_requested && !stream.failed && !capture.failed && stream.active &&
+           (stream.packet_limit == 0 || stream.packets_sent < stream.packet_limit)) {
         struct timeval timeout = {.tv_sec = 1, .tv_usec = 0};
         result = libusb_handle_events_timeout_completed(usb, &timeout, NULL);
         if (result == LIBUSB_ERROR_INTERRUPTED) {
@@ -628,6 +629,10 @@ int main(int argc, char **argv) {
             fprintf(stderr, "libusb event loop failed: %s\n", libusb_error_name(result));
             stream.failed = 1;
         }
+    }
+    if (!output_only && capture.frames_received == 0) {
+        fprintf(stderr, "capture endpoint returned no audio frames\n");
+        capture.failed = 1;
     }
     printf("configuration-1 stream completed: packets=%lu frames=%lu frames_per_ms=%.6f status=%s\n",
            stream.packets_sent, stream.frames_sent,

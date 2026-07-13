@@ -1,3 +1,9 @@
+tascam-uh7000-linux (0.2.0~beta19) unstable; urgency=medium
+
+  * Stop bounded duplex capture with its finite output stream.
+
+ -- carlodevil <64757000+carlodevil@users.noreply.github.com>  Mon, 13 Jul 2026 18:25:00 +0200
+
 tascam-uh7000-linux (0.2.0~beta18) unstable; urgency=medium
 
   * Record successful silent configuration-1 duplex transport validation.
