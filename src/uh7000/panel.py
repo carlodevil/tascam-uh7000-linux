@@ -90,8 +90,9 @@ def main() -> int:
     app = QGuiApplication(sys.argv)
     app.setApplicationName("UH-7000 Control")
     app.setOrganizationName("carlodevil")
-    engine = QQmlApplicationEngine()
     backend = PanelBackend()
+    # Keep the context object alive until after QML has been torn down.
+    engine = QQmlApplicationEngine()
     engine.rootContext().setContextProperty("uh7000", backend)
     qml_path = Path(__file__).with_name("qml") / "Main.qml"
     engine.load(QUrl.fromLocalFile(str(qml_path)))
@@ -103,7 +104,6 @@ def main() -> int:
     timer.start()
     screenshot_path = os.environ.get("UH7000_PANEL_TEST_SCREENSHOT")
     if screenshot_path:
-
         def capture() -> None:
             root = engine.rootObjects()[0]
             root.screen().grabWindow(root.winId()).save(screenshot_path)
@@ -112,7 +112,11 @@ def main() -> int:
     test_exit_ms = int(os.environ.get("UH7000_PANEL_TEST_EXIT_MS", "0"))
     if test_exit_ms > 0:
         QTimer.singleShot(test_exit_ms, app.quit)
-    return app.exec()
+    exit_code = app.exec()
+    timer.stop()
+    # Destroy QML before the Python context object falls out of scope.
+    del engine
+    return exit_code
 
 
 if __name__ == "__main__":
