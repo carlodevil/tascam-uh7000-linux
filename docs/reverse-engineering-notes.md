@@ -102,6 +102,21 @@ requirement is product-specific stream/setup state beyond the known route and
 sample-rate controls, not merely configuration selection, endpoint cadence, or
 byte order.
 
+Windows startup/playback evidence collected on driver 1.02 and firmware 1.08
+now proves that configuration 1 does drive the analog hardware: a left-only
+1.25 kHz Windows shared-audio source returned from Left Line Output to Analog
+Input 2 at -26.37 dBFS with zero clips. The endpoint stream is not plain
+stereo PCM, however. The source is transformed into a product-specific stream
+with adjacent sample behavior before it reaches endpoint `0x02`. Replaying an
+attenuated byte-for-byte Windows endpoint fixture through Linux configuration-1
+ALSA still produced broadband overload. Replaying the captured `0x54`, `0x4d`,
+`0x42`, and exact `0x41` startup sequence before the same fixture did not
+correct playback and left an approximately -35 dBFS idle loopback state. The
+captured pre-test master-route `0x4d` block restored idle capture to about
+-78 dBFS. Therefore no `0x42`, `0x4d`, or `0x41` write is promoted to the
+package: the missing Linux implementation is the Windows driver's stream
+engine, not a replayable mixer initialization sequence.
+
 ## Control-Plane Findings
 
 The Windows package contains UH-7000 mixer-panel strings and driver strings for
