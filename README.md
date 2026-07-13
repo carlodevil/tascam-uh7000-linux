@@ -19,11 +19,15 @@ Confirmed from the legacy implementation and local hardware:
 - explicit playback feedback endpoint `0x85`
 - stock `snd_usb_audio` works after `new_id` registration
 - verified read-only vendor requests `0x49` and bounded `0x55` pages
+- verified transactional `0x49` clock-source control: Automatic and Internal,
+  with readback and rollback validation while physical outputs are disconnected
 
-Mixer and effects writes remain locked until each control is captured in
-isolation and verified by readback. Earlier clipped-loopback observations are
-not treated as device failures: the same-device test formed a feedback loop
-while passthrough was active.
+Only clock source is enabled for hardware writes, and it requires explicit
+physical-output disconnection confirmation. Mixer, routing, direct-monitor,
+and effects writes remain locked until each control is captured in isolation
+and verified by readback. Earlier clipped-loopback observations are not treated
+as device failures: the same-device test formed a feedback loop while
+passthrough was active.
 
 ## Safety model
 
@@ -76,6 +80,14 @@ uh7000ctl --json status
 uh7000ctl --json topology
 uh7000ctl --json diagnostics
 uh7000-panel
+```
+
+With every physical output disconnected, the verified clock-source control can
+be changed transactionally:
+
+```sh
+uh7000ctl --json clock-source internal --outputs-disconnected --execute
+uh7000ctl --json clock-source automatic --outputs-disconnected --execute
 ```
 
 If the device was already connected:

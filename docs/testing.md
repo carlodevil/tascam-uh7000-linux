@@ -33,6 +33,25 @@ Expected topology:
 - `S24_3LE`;
 - explicit endpoint `0x85`, not implicit feedback.
 
+On 2026-07-13, the installed 0.2.0 beta package was validated on one
+UH-7000: configuration 2, `snd_usb_audio`, 4 playback/6 capture channels, and
+endpoint `0x85` were present. With all physical outputs disconnected, the
+transactional clock-source test completed `automatic -> internal -> automatic`
+with final selector `0x02`. This does not validate playback routing.
+
+## Clock-source control
+
+With all physical outputs still disconnected, the persistent control path is:
+
+```sh
+uh7000ctl --json clock-source internal --outputs-disconnected --execute
+uh7000ctl --json clock-source automatic --outputs-disconnected --execute
+```
+
+The D-Bus service exposes the same operation as `SetClockSource(source,
+outputs_disconnected)`. It reads the prior selector, verifies the requested
+value, and restores the prior selector when a write or readback fails.
+
 Record at least ten seconds of silence from all six lanes before any playback.
 Clipping with all outputs physically disconnected is an input/hardware problem
 and blocks output tests.

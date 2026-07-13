@@ -7,7 +7,7 @@
 - [ ] Debian 13 `dpkg-buildpackage -us -uc -b`
 - [ ] `lintian --tag-display-limit 0 ../tascam-uh7000-linux_*.deb`
 - [ ] package install, upgrade from 0.1.34, and purge tests
-- [ ] D-Bus activation and user-service restart tests
+- [x] package reinstall and user-service restart on Debian 13
 - [ ] offscreen Qt Interface/Mixer/Effects rendering test
 - [ ] no research-only `0x42`, `0x4d`, or `0x55` write command in the package
 - [x] isolated Windows captures recorded for clock, mode, monitor and routing controls
@@ -16,7 +16,7 @@
 ## Native device
 
 - [ ] configuration 2 and `snd_usb_audio` bind after 20 reconnects
-- [ ] 4 playback / 6 capture channels and explicit endpoint `0x85`
+- [x] 4 playback / 6 capture channels and explicit endpoint `0x85` on one Debian 13 host
 - [ ] physical mapping characterized with isolated sources
 - [ ] PipeWire graph contains no unintended capture-to-playback path
 - [ ] direct-monitor state positively read back as off before playback
@@ -25,7 +25,7 @@
 - [ ] eight-hour duplex runs at 48, 96 and 192 kHz
 - [ ] suspend/resume, invalid digital clock and unplug recovery pass
 - [ ] every enabled mixer/effect control has capture, readback and rollback evidence
-- [ ] request `0x49` atomic clock change passes an output-disconnected Linux test
+- [x] request `0x49` atomic clock change passes an output-disconnected Linux test
 
 ## Publication
 

@@ -27,7 +27,14 @@ An isolated Windows capture on driver 1.02 / firmware 1.08 verified request
 `0x49` values `0x00` (internal clock) and `0x02` (automatic clock). The protocol
 module contains an atomic write primitive that reads the previous value,
 writes the new selector, verifies readback and rolls back on mismatch. It is
-not exposed by D-Bus, CLI or UI pending the output-disconnected Linux test.
+exposed as the narrowly scoped `SetClockSource` D-Bus method and
+`uh7000ctl clock-source` command only after explicit physical-output
+disconnection confirmation. The same confirmation gates the panel control.
+
+Linux validation on 2026-07-13, using the installed 0.2.0 beta package with
+the UH-7000 in UAC2 configuration 2, confirmed `automatic -> internal ->
+automatic`; each transition returned matching request-`0x49` readback and the
+final selector was `0x02` (Automatic).
 
 Verified `0x55` page indices are `0x1f00` and `0x007c..0x007f`. Page `0x0002`
 is deliberately rejected because legacy hardware tests stalled it.
