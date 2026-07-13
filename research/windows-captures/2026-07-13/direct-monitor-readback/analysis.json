@@ -1,0 +1,33 @@
+{
+  "schema": "io.github.carlodevil.UH7000.DirectMonitorReconnect.v1",
+  "device": {
+    "driver_version": "1.02",
+    "firmware_version": "1.08",
+    "sample_rate_hz": 48000
+  },
+  "monitor_control": {
+    "request": "0x54",
+    "index": "0x012c",
+    "computer_off_value": "0x7f60",
+    "observed_toward_input_value": "0x586c",
+    "readback_available": false,
+    "endpoint_0x83_notification_available": false
+  },
+  "panel_restart": {
+    "visible_state_after_restart": "computer_off",
+    "usb_state_read_observed": false,
+    "usb_state_write_observed": false,
+    "interpretation": "host_driver_cache"
+  },
+  "usb_reconnect": {
+    "reconnect_time_seconds": 7.975372,
+    "new_device_address": 6,
+    "startup_write_time_seconds": 8.23411,
+    "startup_write_setup_hex": "4054607f2c010000",
+    "visible_state_after_reconnect": "computer_off",
+    "interpretation": "windows_driver_reasserts_off_without_readback"
+  },
+  "production_classification": "guarded_force_off_candidate",
+  "required_state_label": "forced_off_unverified"
+}
+

@@ -4,7 +4,11 @@ set -eu
 VID="0644"
 PID="8048"
 TARGET_CONFIG="2"
+CONFIGURE_ATTEMPTS="8"
+CONFIGURE_COOLDOWN_SECONDS="60"
 LOG_TAG="tascam-uh7000"
+CONFIGURATION_LOCK="/run/tascam-uh7000/configuration.lock"
+COOLDOWN_FILE="/run/tascam-uh7000/configure-cooldown"
 
 log() {
     if command -v logger >/dev/null 2>&1; then
@@ -37,6 +41,28 @@ find_first_device() {
     return 1
 }
 
+device_identity() {
+    printf '%s/%s\n' "$(cat "$devpath/busnum")" "$(cat "$devpath/devnum")"
+}
+
+cooldown_active() {
+    [ -r "$COOLDOWN_FILE" ] || return 1
+    read -r saved_identity expires_at < "$COOLDOWN_FILE" || return 1
+    current_identity="$(device_identity)"
+    now="$(date +%s)"
+    if [ "$saved_identity" = "$current_identity" ] && [ "$expires_at" -gt "$now" ] 2>/dev/null; then
+        log "configuration 2 recovery is cooling down for $((expires_at - now))s after a failed attempt"
+        return 0
+    fi
+    rm -f "$COOLDOWN_FILE"
+    return 1
+}
+
+start_cooldown() {
+    umask 022
+    printf '%s %s\n' "$(device_identity)" "$(( $(date +%s) + CONFIGURE_COOLDOWN_SECONDS ))" > "$COOLDOWN_FILE"
+}
+
 usage() {
     cat <<EOF
 Usage: tascam-uh7000-configure [USB_KERNEL_NAME]
@@ -56,6 +82,16 @@ esac
 if [ "$(id -u)" -ne 0 ]; then
     log "must run as root"
     exit 1
+fi
+
+# A live configuration-1 stream holds this advisory lock before changing USB
+# configuration. Its change event must not force UAC2 back underneath usbfs.
+if [ -e "$CONFIGURATION_LOCK" ] && command -v flock >/dev/null 2>&1; then
+    exec 9>"$CONFIGURATION_LOCK"
+    if ! flock -n 9; then
+        log "configuration-1 stream is active; deferring UAC2 selection"
+        exit 0
+    fi
 fi
 
 devpath=""
@@ -85,12 +121,31 @@ if [ "$num_configs" -lt "$TARGET_CONFIG" ] 2>/dev/null; then
     exit 4
 fi
 
-if [ "$current_config" = "$TARGET_CONFIG" ]; then
-    log "UH-7000 already in USB configuration $TARGET_CONFIG"
-else
-    log "switching UH-7000 at $(basename "$devpath") from USB configuration $current_config to $TARGET_CONFIG"
+if [ "$current_config" != "$TARGET_CONFIG" ] && cooldown_active; then
+    exit 0
+fi
+
+attempt=1
+while [ "$current_config" != "$TARGET_CONFIG" ] && [ "$attempt" -le "$CONFIGURE_ATTEMPTS" ]; do
+    log "selecting USB configuration $TARGET_CONFIG at $(basename "$devpath") (attempt $attempt/$CONFIGURE_ATTEMPTS; current $current_config)"
     printf '%s' "$TARGET_CONFIG" > "$devpath/bConfigurationValue"
     sleep 1
+    current_config="$(cat "$devpath/bConfigurationValue" 2>/dev/null || printf '?')"
+    attempt=$((attempt + 1))
+done
+
+if [ "$current_config" != "$TARGET_CONFIG" ]; then
+    start_cooldown
+    log "USB configuration $TARGET_CONFIG did not remain selected after $CONFIGURE_ATTEMPTS attempts (current $current_config)"
+    exit 5
+fi
+
+rm -f "$COOLDOWN_FILE"
+
+if [ "$attempt" -eq 1 ]; then
+    log "UH-7000 already in USB configuration $TARGET_CONFIG"
+else
+    log "UH-7000 is in USB configuration $TARGET_CONFIG"
 fi
 
 if command -v modprobe >/dev/null 2>&1; then

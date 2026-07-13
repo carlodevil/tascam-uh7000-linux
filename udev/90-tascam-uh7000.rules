@@ -1,4 +1,7 @@
-# TASCAM UH-7000 USB audio interface.
-# The device powers up in vendor-specific configuration 1. Configuration 2
-# exposes USB Audio 2.0 interfaces that can bind to snd_usb_audio.
-ACTION=="add", SUBSYSTEM=="usb", ATTR{idVendor}=="0644", ATTR{idProduct}=="8048", TAG+="systemd", ENV{SYSTEMD_WANTS}+="tascam-uh7000-configure@%k.service"
+# Unofficial TASCAM UH-7000 Linux integration.
+# Root performs the one-time switch to UAC2 configuration 2.  The active
+# desktop user receives control-endpoint access via uaccess.  audio is a
+# non-world-readable fallback for desktop sessions whose ACL is applied only
+# on physical hotplug events.
+ACTION=="add", SUBSYSTEM=="usb", ENV{DEVTYPE}=="usb_device", ATTR{idVendor}=="0644", ATTR{idProduct}=="8048", ATTR{authorized}=="1", GROUP="audio", MODE="0660", TAG+="uaccess", TAG+="systemd", ENV{SYSTEMD_WANTS}+="tascam-uh7000-configure@%k.service"
+ACTION=="change", SUBSYSTEM=="usb", ENV{DEVTYPE}=="usb_device", ATTR{idVendor}=="0644", ATTR{idProduct}=="8048", ATTR{authorized}=="1", GROUP="audio", MODE="0660", TAG+="uaccess", TAG+="systemd", ENV{SYSTEMD_WANTS}+="tascam-uh7000-configure@%k.service"

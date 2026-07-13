@@ -1,225 +1,240 @@
-# UH-7000 Test Flow
+# Feedback-Safe UH-7000 Test Flow
 
-This document defines the supported test sequence for the Linux package. It is
-written to keep unsafe output-routing experiments separated from read-only or
-capture-only checks.
-
-## Baseline Install Check
-
-After installing the package and reconnecting the UH-7000:
+## Hardware-free checks
 
 ```sh
-uh7000ctl status
-sudo uh7000ctl control-status
-sudo uh7000ctl state-dump /tmp
-sudo uh7000ctl report 1 > uh7000-report.json
+python3 -m compileall -q src tests tools
+PYTHONPATH=src python3 -m unittest discover -s tests -v
+python3 -m build
+dpkg-buildpackage -us -uc -b
+lintian ../tascam-uh7000-linux_*.deb
 ```
 
-Expected baseline:
+CI additionally launches the panel with `QT_QPA_PLATFORM=offscreen` when
+PySide6 is available.
 
-- USB configuration is `2`.
-- Interfaces `2.0`, `2.1`, and `2.2` are bound to `snd-usb-audio`.
-- ALSA shows the `UH7000` card.
-- Playback exposes 4-channel `S24_3LE`.
-- Capture exposes 6-channel `S24_3LE`.
-- Playback reports sync endpoint `0x85` and `Implicit Feedback Mode: No`.
-- Vendor selector request `0x49` responds.
-- Read-only state dump request `0x55` returns 512-byte pages for `0x1f00` and
-  the direct Windows `0xf800` image pages `0x007c..0x007f`.
+## Native Debian baseline
 
-`state-dump` writes a raw 512-byte page and JSON metadata. It does not play
-audio, does not send mixer writes, and does not scan page indices. Local
-hardware rejected page `0x0002` in the current Linux state, so that page is not
-an installed default.
-
-## Capture Gate
-
-Before any playback or output-routing test:
+With speakers, headphones and physical output-to-input cables disconnected:
 
 ```sh
-sudo uh7000ctl preflight 2
-```
-
-`preflight` must pass. It does not play audio and does not send mixer writes.
-If it fails because capture clips, do not run output tests.
-If it fails because playback is in implicit-feedback mode, the output test is
-not a valid routing check. Stop USB audio clients and reload the USB audio
-module for this test session:
-
-```sh
-sudo modprobe -r snd_usb_audio
-sudo modprobe snd_usb_audio implicit_fb=N ignore_ctl_error=Y skip_validation=Y
 sudo uh7000ctl configure
+uh7000ctl --json status
+uh7000ctl --json topology
+uh7000ctl --json diagnostics > uh7000-diagnostics.json
 ```
 
-The module reload affects USB audio devices globally until another reload or
-reboot. The package records this as a test precondition because local usbmon
-captures showed correct 48 kHz packet sizing only when the UH-7000 explicit
-feedback endpoint `0x85` was active. Explicit feedback alone has not restored
-analog output, so it is a necessary gate, not the final routing fix.
+Expected topology:
 
-When the front-panel meter is solid red or the report has
-`"safe_for_output_test": false`, disconnect any output-to-input loopback,
-power-cycle the UH-7000, reconnect USB, and repeat `preflight`.
+- configuration 2;
+- `snd_usb_audio` bound;
+- 4 playback channels;
+- 6 capture channels;
+- `S24_3LE`;
+- explicit endpoint `0x85`, not implicit feedback.
 
-## Output Loopback Test
+On 2026-07-13, the installed 0.2.0 beta package was validated on one
+UH-7000: configuration 2, `snd_usb_audio`, 4 playback/6 capture channels, and
+endpoint `0x85` were present. With all physical outputs disconnected, the
+transactional clock-source test completed `automatic -> internal -> automatic`
+with final selector `0x02`. This does not validate playback routing.
 
-Only after `preflight` passes:
+The separate configuration-1 backend was also validated through a physical
+Left Line Output to Analog Input 2 loop. A generated 48 kHz stereo S24_3LE
+1250 Hz stream returned at -1.75 dBFS, with the device restored to
+configuration 2 afterwards. Do not use that test level with a raised input gain
+or connected speakers/headphones.
 
-1. Connect the UH-7000 outputs to the inputs with gain set low.
-2. Run:
+## Configuration-1 analog playback
+
+`uh7000-stream` is intentionally separate from the configuration-2 ALSA card.
+It takes stereo S24_3LE raw PCM at exactly 48 kHz, uses the vendor stream for
+the requested bounded duration, then returns the hardware to configuration 2.
+
+With physical outputs disconnected, verify transport and recovery:
 
 ```sh
-sudo uh7000ctl loopback-test 3 -60
+uh7000-stream --seconds 2 --execute
+uh7000ctl --json topology
 ```
 
-The loopback test plays a 1 kHz, -60 dBFS, 4-channel `S24_3LE` tone and records
-the 6-channel capture stream. It fails if capture clips or if no 1 kHz return
-tone appears above -90 dBFS.
-
-## Recovery
-
-For the constant clipped-output state observed on local hardware, use the
-0x4d-only noise suppression gate:
+For a file, explicitly resample and pipe it into the backend:
 
 ```sh
-sudo uh7000ctl suppress-noise 2
+ffmpeg -i input.wav -f s24le -ac 2 -ar 48000 - | \
+  uh7000-stream --stdin --seconds 0 --execute
 ```
 
-This command does not play audio and does not send request `0x42`. It applies a
-Windows-derived `0x4d` block that zeroes one channel-0 gain word, then checks
-capture again. On local hardware it reduced the looped-back output from hard
-clipping to roughly the input noise floor (`-96 dBFS RMS` on the connected
-lanes). It also muted the return tone in `loopback-test`, so it is a recovery
-gate, not the final output-routing fix.
+Record the pre/post `uh7000ctl --json topology` result, command exit status,
+and any USB errors. Long-running playback and default PipeWire-sink integration
+remain release gates.
 
-The low-level installed vendor-write recovery command is:
+## PipeWire-Pulse bridge
+
+The optional per-user bridge creates a virtual `uh7000-analog` sink. It keeps
+the hardware in configuration 1 only while enabled and returns it to
+configuration 2 on disable:
 
 ```sh
-sudo uh7000ctl quiet
+uh7000-pipewire enable
+pactl list short sinks | grep uh7000-analog
+uh7000-pipewire disable
+uh7000ctl --json topology
 ```
 
-It sends zeroed payloads for verified requests `0x4d` and `0x42`. If clipping
-persists after `quiet`, stop live testing and power-cycle the interface.
+Use `uh7000-pipewire set-default` only after the enable/disable sequence is
+clean. Capture the output of `systemctl --user status uh7000-stream.service`
+and confirm configuration 2 plus `uh7000d` recovery after disable.
 
-For a repeatable before/after recovery attempt, use:
+On 2026-07-13, beta3 completed a 60-second PipeWire-Pulse stream at 48 kHz
+stereo while the control service was queried at 20, 40, and 60 seconds. Every
+checkpoint reported configuration 1; the stream then stopped inactive without
+failure and the device returned to configuration 2. This is a bounded handoff
+check, not the required 30-minute or eight-hour endurance evidence.
+
+Beta4 additionally read endpoint `0x85` during a five-second configuration-1
+run. The feedback averaged 47.994379 frames/ms (range 47.977112 to 48.0), and
+the adaptive packet scheduler transmitted 47.994205 frames/ms. This prevents
+the fixed-48-frame drift that would otherwise accumulate in long playback.
+
+The same beta4 validation manually selected configuration 1, confirmed that
+`uh7000ctl` still reported the device, then ran the packaged
+`tascam-uh7000-configure 1-5` helper. It selected configuration 2, registered
+`snd_usb_audio`, restored the UH-7000 ALSA card, and the restarted D-Bus
+service reported configuration 2. This covers a software configuration
+handoff, not a physical USB unplug or power-cycle.
+
+Beta5 refuses clock-source writes unless configuration 2 is active. Read-only
+status remains available with the PipeWire analog sink enabled, but disable the
+sink before any control-plane write that can interrupt the stream.
+
+Beta6 also handles USB `change` events. This covers device reauthorization,
+which otherwise restores configuration 1 without emitting the physical-hotplug
+`add` event. The configure helper remains idempotent when configuration 2 is
+already selected.
+
+Beta7 limits those rules to `authorized=1`; a deauthorization also emits a
+change event, but cannot safely select a USB configuration. Reauthorization is
+therefore the event that starts the idempotent configuration helper.
+
+Beta9 verifies that configuration 2 remains selected after every write and
+retries it for up to eight seconds. Reauthorization can emit an available-device
+event before firmware has settled on configuration 1, so a single write cannot
+be treated as a successful hotplug recovery.
+
+Beta17 also exercised the configuration-1 duplex endpoints with two seconds of
+digital silence. The adaptive output sent 2,004 packets (96,165 frames), the
+feedback endpoint returned 2,010 packets (47.987064 frames/ms average), and
+the capture endpoint completed without malformed-packet errors. Capture RMS
+was -84.45 dBFS on channel 1 and -76.55 dBFS on channel 2; the device then
+returned to configuration 2 with `snd_usb_audio` bound. This validates silent
+duplex transport, not physical analog routing.
+
+Beta19 fixed the finite duplex lifetime so capture stops with the bounded
+output stream. With speakers and headphones disconnected, Left Line Output
+patched to Analog Input 2, and Input 2 gain at maximum, a two-second -30 dBFS
+1,250 Hz probe returned on capture channel 2 at -74.71 dBFS with RMS -46.60
+dBFS. The probe completed without clipping and restored configuration 2 with
+`snd_usb_audio` bound. This proves the configuration-1 analog left-output to
+Input 2 path only; it does not characterize all UAC2 playback channels or
+unlock direct-monitor-dependent guarded tests.
+
+Beta21 kept capture active for unbounded duplex probes and recorded a second
+physical analog mapping. With the user-reported Right Line Output patched to
+Analog Input 1, Input 1 gain at maximum, and all speakers/headphones
+disconnected, the same two-second stereo 1,250 Hz probe returned only on
+capture channel 1. Channel 1 measured -0.36 dBFS RMS, so the input was at the
+clipping threshold and was immediately returned to minimum gain. Channel 2
+remained at -89.13 dBFS RMS with no matching tone. The stream completed and
+the device restored configuration 2 with `snd_usb_audio` bound. This validates
+the second configuration-1 analog output/input path, but does not identify the
+four configuration-2 UAC2 playback-channel routes.
+
+An AES/EBU output-to-input loop must use the verified `internal` clock source.
+With `automatic` clocking, the configuration-1 feedback and capture packets
+returned zero length on the first transfer. The probe failed closed before
+audio was streamed, and the device refused all software attempts to select
+configuration 2. Recovery required disconnecting both the UH-7000 power and
+USB cables until the host confirmed the device was absent, then reconnecting
+power first and USB second. A single configuration-2 selection then succeeded.
+With the selector readback locked to `internal`, the same physical AES loop
+completed a two-second configuration-1 duplex probe: 2,004 packets with valid
+48 kHz feedback and normal configuration-2 recovery. No tone appeared on its
+two configuration-1 capture lanes, so this establishes transport stability but
+not AES capture routing; AES lanes must be measured through configuration 2.
+
+## Clock-source control
+
+With all physical outputs still disconnected, the persistent control path is:
 
 ```sh
-sudo uh7000ctl recover 1
+uh7000ctl --json clock-source internal --outputs-disconnected --execute
+uh7000ctl --json clock-source automatic --outputs-disconnected --execute
 ```
 
-`recover` does not play audio and does not send experimental payloads. It checks
-capture, applies the same verified `quiet` blocks, waits briefly, and checks
-capture again. If it still fails, disconnect the output-to-input loopback,
-power-cycle the UH-7000, reconnect USB, and run `sudo uh7000ctl preflight 2`.
+The D-Bus service exposes the same operation as `SetClockSource(source,
+outputs_disconnected)`. It reads the prior selector, verifies the requested
+value, and restores the prior selector when a write or readback fails.
 
-`capture-health` and `report` classify clipped input states:
+Record at least ten seconds of silence from all six lanes before any playback.
+Clipping with all outputs physically disconnected is an input/hardware problem
+and blocks output tests.
 
-- `odd-input-mirror`: channels 1/3/5 clip.
-- `even-input-mirror`: channels 2/4/6 clip.
-- `all-channels`: all six USB capture channels clip.
-- `partial`: another clipped-channel pattern.
+## Passthrough isolation
 
-Any clipped pattern keeps output playback gated.
+Before every playback attempt:
 
-## Analog Output Noise On Power-Up
+1. Stop DAWs, browser capture and prior test processes.
+2. Inspect `pw-link -l` and remove every capture-to-playback or loopback link.
+3. Read the UH-7000 DSP monitor state and confirm it is off. Unknown is not off.
+4. Set physical inputs to line level and minimum gain.
+5. Disconnect speakers and headphones.
+6. Use an independent capture interface when available. Otherwise install
+   physical attenuation before a same-device loop.
+7. Measure a new capture baseline.
 
-If the UH-7000 outputs emit steady noise immediately after power-on or USB
-attach, before running manual `uh7000ctl quiet`, `recover`, or output tests, do
-not keep the output-to-input loopback connected. The package hotplug service
-only selects USB configuration `2` and registers `snd-usb-audio`; it does not
-send vendor mixer requests `0x4d` or `0x42`.
-
-Use this isolation sequence:
-
-1. Disconnect any output-to-input loopback.
-2. Power-cycle the UH-7000 and reconnect USB.
-3. Run `sudo uh7000ctl preflight 2`.
-4. If preflight is clean with outputs disconnected, the input path is usable and
-   the remaining issue is output-side noise/routing.
-5. Reconnect loopback only for `sudo uh7000ctl loopback-test 3 -60`, and only
-   after preflight passes.
-
-If preflight still clips with outputs disconnected, treat it as an input-side or
-hardware baseline problem and do not run output tests.
-
-To characterize noise visible at the inputs without generating host playback,
-run:
+Evaluate the software gates:
 
 ```sh
-sudo uh7000ctl input-noise 4
+uh7000ctl --json preflight \
+  --speakers-disconnected \
+  --attenuated-loopback \
+  --baseline-peak-dbfs -80
 ```
 
-This capture-only analyzer reports RMS/peak, DC offset, clip polarity,
-zero-crossing rate, strongest spectral bins, and coarse band power for all six
-USB capture channels. If the outputs are patched to the inputs, it describes the
-noise currently returning through that loopback.
+The command must remain nonzero while direct-monitor readback is unavailable.
+Do not bypass this gate with a manual `aplay` command.
 
-## Waiting For Manual Recovery
+## Guarded channel test
 
-When manual power-cycling is needed, use `wait-clean` to poll the safe preflight
-gate without playback or mixer writes:
+Once direct-monitor readback is implemented and preflight passes:
 
-```sh
-sudo uh7000ctl wait-clean 12 1 10 carlodevelopmentwork
-```
+- open capture before playback;
+- test one playback channel at a time;
+- use 1250, 1500, 1750 and 2000 Hz for channels 1–4;
+- ramp each channel from -90 to -60 dBFS in 5 dB steps;
+- evaluate capture every 100 ms;
+- abort at -18 dBFS, any clipped sample, or growth greater than 12 dB per
+  guard window;
+- stop after three seconds per channel; and
+- confirm no tone appears on an unintended channel.
 
-The arguments are: retry count, capture seconds per retry, interval seconds,
-and optional ntfy.sh topic. The command sends at most one notification and
-returns only when `preflight` passes. If all retries fail, output playback
-remains gated.
+Never test channel order by putting the same tone on all channels.
 
-## Offline Control-Plane Images
+## Matrix and endurance
 
-The decoded 0xf800 mixer/UI image path can be inspected without writing to the
-UH-7000:
+Run channel mapping and duplex checks at 44.1, 48, 88.2, 96, 176.4 and
+192 kHz. Run 30 minutes at every rate, then eight-hour duplex tests at 48, 96
+and 192 kHz. Record XRUNs, USB errors, packet/feedback status, drift, CPU load,
+and PipeWire graph state.
 
-```sh
-uh7000ctl control-plan f800
-/tmp/uh7000-emuv/bin/python tools/uh7000_cpl_emulate.py --f800-image --json
-```
+Also test reconnect, device power cycle, service restart, UI restart,
+suspend/resume, invalid AES/EBU clock, unplug during read, and unplug during a
+transactional control write.
 
-This documents the six rate-specific `0x42` blocks, the current `0x4d` block at
-image offset `0x600`, the footer checksum, and request `0x55` pages
-`0x007c..0x007f`. It is not a live write test. The package does not upload the
-0xf800 image automatically while the image semantics and recovery path are
-being proven.
+## Control promotion
 
-The live write path is available only as an explicit experiment:
-
-```sh
-UH7000_EXPERIMENTAL_0X55_WRITE=1 sudo -E uh7000ctl f800-upload /tmp/uh7000-f800.bin
-```
-
-`f800-upload` runs preflight first, saves the current `0x007c..0x007f` pages to
-a backup under `/tmp`, verifies every page by readback, and restores the backup
-if capture clips immediately after upload. If manual rollback is needed:
-
-```sh
-UH7000_EXPERIMENTAL_0X55_WRITE=1 sudo -E uh7000ctl f800-restore /tmp/uh7000-f800-backup.xxxxxx.bin
-```
-
-## Offline Output Encoder Model
-
-The Windows USB driver installs a product-specific ISO OUT encoder before
-submitting playback data. Model the decoded packing routines with:
-
-```sh
-python3 tools/uh7000_iso_encoder.py --mode uh7000 --json
-python3 tools/uh7000_iso_encoder.py --mode uh7000 --tone-raw /tmp/uh7000-encoded-tone.raw
-```
-
-The UH-7000 branch maps virtual source slots `0,1,4,5` into the 4-channel
-endpoint frame. If the hardware is reconnected and preflight passes, the raw
-tone file can be played with the `aplay_command` printed by the tool, but output
-loopback remains the authority for success.
-
-## Issue Reports
-
-Attach this output to GitHub issues:
-
-```sh
-sudo uh7000ctl report 1 > uh7000-report.json
-```
-
-The report format is described by `report-schema.json`.
+Mixer/effect controls stay disabled until the capture/readback procedure in
+`protocol.md` passes. A beta release cannot be marked stable until every
+enabled control has a repeatable hardware test and two additional UH-7000
+systems confirm duplex operation.

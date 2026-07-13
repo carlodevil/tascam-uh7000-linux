@@ -1,0 +1,15 @@
+[Unit]
+Description=UH-7000 per-user control service
+Documentation=man:uh7000ctl(1)
+After=graphical-session-pre.target
+PartOf=graphical-session.target
+
+[Service]
+Type=dbus
+BusName=io.github.carlodevil.UH7000.Control1
+ExecStart=/usr/bin/uh7000d
+Restart=on-failure
+RestartSec=2
+
+[Install]
+WantedBy=default.target

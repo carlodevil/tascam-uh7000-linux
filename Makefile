@@ -9,4 +9,4 @@ test:
 	./scripts/ci-smoke.sh
 
 clean:
-	rm -rf build dist
+	rm -rf .pytest_cache build dist src/*.egg-info

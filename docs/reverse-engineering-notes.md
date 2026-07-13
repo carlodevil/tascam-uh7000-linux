@@ -1,5 +1,13 @@
 # Reverse Engineering Notes
 
+> **Legacy evidence notice (0.2):** the original output-to-input tests were run
+> while passthrough was active, forming a feedback loop. Statements below that
+> attribute clipping, steady noise, or recovery to device/driver failure are not
+> production conclusions. Requests `0x42`, `0x4d`, and `0x55` writes remain
+> research-only until they are re-captured with all hardware and software
+> monitoring paths isolated. Confirmed configuration-2 descriptors, explicit
+> feedback observations, read-only requests, and offline decoders remain useful.
+
 These notes summarize the static inspection used to build the first Linux
 support package.
 
@@ -78,10 +86,36 @@ the remaining missing piece is not simply opening the PCM stream or sizing USB
 audio packets; it is in the UH-7000 output routing/encoder state that the
 Windows driver and control panel initialize.
 
-Configuration `1` should not be used as a playback fallback. It exposes a
-misleading vendor-specific stream when forced through `snd-usb-audio`, but
-local tests timed out while setting frequency and wedged the USB device until a
-power-cycle/replug.
+Configuration `1` is the Windows driver's analog-stream configuration, but it
+is not a usable ALSA fallback yet. On the local device it exposes a stereo,
+48 kHz, S24_3LE full-duplex stream. A four-second idle capture after restoring
+the known master-route block measured about -80 dBFS RMS. Sending a three-second
+-30 dBFS 1.25 kHz ALSA tone made the output-to-input loopback clip at about
+-11.5 dBFS RMS, while the 1.25 kHz component remained below -81 dBFS. Applying
+the captured Windows computer-playback `0x4d` block in configuration `1` made
+the broadband clipping worse and also did not recover the tone. The block was
+then restored to the captured master-route value and the idle baseline returned.
+The known five-write vendor `0x41` 48 kHz setup sequence also completed in
+configuration `1` but produced broadband playback rather than the tone; it did
+not persist in the subsequent idle capture. This confirms that the remaining
+requirement is product-specific stream/setup state beyond the known route and
+sample-rate controls, not merely configuration selection, endpoint cadence, or
+byte order.
+
+Windows startup/playback evidence collected on driver 1.02 and firmware 1.08
+now proves that configuration 1 does drive the analog hardware: a left-only
+1.25 kHz Windows shared-audio source returned from Left Line Output to Analog
+Input 2 at -26.37 dBFS with zero clips. The endpoint stream is not plain
+stereo PCM, however. The source is transformed into a product-specific stream
+with adjacent sample behavior before it reaches endpoint `0x02`. Replaying an
+attenuated byte-for-byte Windows endpoint fixture through Linux configuration-1
+ALSA still produced broadband overload. Replaying the captured `0x54`, `0x4d`,
+`0x42`, and exact `0x41` startup sequence before the same fixture did not
+correct playback and left an approximately -35 dBFS idle loopback state. The
+captured pre-test master-route `0x4d` block restored idle capture to about
+-78 dBFS. Therefore no `0x42`, `0x4d`, or `0x41` write is promoted to the
+package: the missing Linux implementation is the Windows driver's stream
+engine, not a replayable mixer initialization sequence.
 
 ## Control-Plane Findings
 
@@ -259,14 +293,37 @@ Safe local probes found:
   generic encoder `0xf106c850` or the UH-7000-specific encoder `0xf106cce0`
   depending on a descriptor/status bit. The generic encoder packs each 32-bit
   left-aligned source sample into 3 little-endian bytes. The UH-7000 encoder
-  consumes a virtual 8-slot source layout and emits a 4-channel endpoint frame
-  from source slots `0,1,4,5`, skipping slots `2,3` and `6,7`. A second generic
+  consumes a four-lane internal source frame and emits only lanes `0,1` as a
+  stereo S24_3LE endpoint frame, discarding lanes `2,3`. A second generic
   branch at `0xf1021724` can install `0xf106c930`, which packs stereo pairs in
-  swapped order. Because the loopback test plays the same 1 kHz tone on all
-  four ALSA channels, channel order alone should not erase the tone; the more
-  important finding is that Windows does product-specific output preparation in
-  the USB driver while Linux currently relies on the standard class-driver
-  path for configuration `2`.
+  swapped order. The Windows endpoint capture matches this stereo framing but
+  shows that lane 1 is still populated by Windows' internal audio path even
+  for a left-only shared-audio source. The important finding is that Windows
+  performs product-specific stream preparation before USB submission, while
+  Linux currently relies on the standard class-driver path for configuration
+  `2`.
+- A Windows baseline capture confirms that the product driver selects vendor
+  configuration `1` for the UH-7000 analog stream. Its endpoint `0x02`
+  transfers are stereo S24_3LE: 48 frames are 288 bytes, and Windows batches
+  six packets into 1728-byte isochronous URBs. The UAC2 configuration `2`
+  playback terminal is instead declared as a Digital Audio Interface. The
+  uninstalled `tools/uh7000_config1_probe.c` mirrors the captured packet
+  cadence, is dry-run by default, detaches/re-attaches `snd-usb-audio` around a
+  bounded duplex test, and restores configuration `2`. It can also replay a
+  raw stereo endpoint fixture and report direct endpoint-`0x81` capture RMS and
+  625 Hz/1.25 kHz energy. A sanitizer-backed local two-second six-packet replay
+  of an attenuated, byte-for-byte Windows endpoint fixture completed 2,004
+  packets, returned the physical left output through Analog Input 2 at -21.37
+  dBFS at 625 Hz, and restored configuration `2` cleanly. This verifies the
+  configuration-1 transport and physical output route, but not the Windows
+  shared-audio encoder: the same Windows fixture produces 625 Hz on Linux where
+  the Windows loopback returns 1.25 kHz. A second, generated ordinary stereo
+  S24_3LE 1.25 kHz stream returned 1.25 kHz on Analog Input 2 at -1.75 dBFS.
+  The packet transport is therefore ordinary stereo PCM; the unmatched Windows
+  fixture is not a playback oracle because it was captured in a different run
+  from the verified physical loopback. The bounded transport backend is now
+  packaged as `uh7000-stream` in output-only mode; the opt-in
+  `--duplex-probe` capture and raw-fixture modes remain experimental.
 
 The helper call-site table can be regenerated from an objdump-style driver
 disassembly:

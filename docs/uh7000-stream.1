@@ -1,0 +1,62 @@
+.TH UH7000-STREAM 1 "July 2026" "tascam-uh7000-linux" "User Commands"
+.SH NAME
+uh7000-stream \- explicit configuration-1 analog playback for the TASCAM UH-7000
+.SH SYNOPSIS
+.B uh7000-stream
+.RB [ \-\-seconds
+.IR N ]
+.RB [ \-\-raw
+.IR FILE \||\| \-\-stdin ]
+.RB [ \-\-output-only ]
+.RB [ \-\-duplex-probe ]
+.B \-\-execute
+.SH DESCRIPTION
+.B uh7000-stream
+temporarily selects the UH-7000 vendor USB configuration 1 and sends a stereo
+48 kHz S24_3LE stream to its verified analog playback endpoint. On normal exit,
+SIGINT, or SIGTERM it restores USB configuration 2 so the stock
+.B snd_usb_audio
+capture/control topology returns.
+
+The stream reads endpoint 0x85 feedback and varies packet frame counts to
+follow the device clock rather than assuming exactly 48 frames per millisecond.
+
+Without a source option the command generates a bounded 1250 Hz tone at
+-30 dBFS. This is intended for disconnected-output diagnostics only.
+.SH OPTIONS
+.TP
+.BI \-\-raw " FILE"
+Replay a finite stereo S24_3LE, 48000 Hz raw PCM file. The file length must be
+a multiple of 288 bytes.
+.TP
+.B \-\-stdin
+Read stereo S24_3LE, 48000 Hz raw PCM from standard input. A duration of zero
+runs until standard input closes or the process receives SIGINT/SIGTERM.
+.TP
+.BI \-\-seconds " N"
+Run for one through ten seconds. With
+.B \-\-stdin
+only, zero means run until interrupted. The default is two seconds.
+.TP
+.B \-\-output-only
+Do not claim the configuration-1 capture interface. This is the default.
+.TP
+.B \-\-duplex-probe
+Claim the configuration-1 capture endpoint and print loopback metrics. This is
+research diagnostics only; it is not needed for playback and can observe a
+variable-length capture packet after a device rebind.
+.TP
+.B \-\-execute
+Perform the stream. Without this flag the command only prints its plan.
+.SH EXAMPLES
+.nf
+ffmpeg -i music.wav -f s24le -ac 2 -ar 48000 - | uh7000-stream --stdin --seconds 0 --execute
+uh7000-stream --seconds 2 --execute
+.fi
+.SH SAFETY
+Disconnect speakers and headphones before using the generated tone. The command
+does not apply mixer, DSP, or vendor control writes. It is an explicit analog
+playback path and does not make the normal UAC2 configuration-2 playback
+terminal analog-routed.
+.SH SEE ALSO
+.BR uh7000ctl (1)

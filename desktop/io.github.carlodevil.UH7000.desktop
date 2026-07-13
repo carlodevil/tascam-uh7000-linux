@@ -1,0 +1,11 @@
+[Desktop Entry]
+Type=Application
+Name=UH-7000 Control
+GenericName=Audio Interface Control Panel
+Comment=Unofficial control panel for the TASCAM UH-7000
+Exec=uh7000-panel
+Icon=audio-card
+Terminal=false
+Categories=AudioVideo;Audio;Settings;
+Keywords=TASCAM;UH-7000;audio;mixer;
+StartupNotify=true

@@ -1,3 +1,156 @@
+tascam-uh7000-linux (0.2.0~beta24) unstable; urgency=medium
+
+  * Rate-limit failed UAC2 recovery attempts to prevent USB reconnect churn.
+
+ -- carlodevil <64757000+carlodevil@users.noreply.github.com>  Mon, 13 Jul 2026 19:35:00 +0200
+
+tascam-uh7000-linux (0.2.0~beta23) unstable; urgency=medium
+
+  * Refresh the clock-source state from its verified hardware selector.
+
+ -- carlodevil <64757000+carlodevil@users.noreply.github.com>  Mon, 13 Jul 2026 19:20:00 +0200
+
+tascam-uh7000-linux (0.2.0~beta22) unstable; urgency=medium
+
+  * Defer hotplug UAC2 selection while a configuration-1 stream owns USB.
+
+ -- carlodevil <64757000+carlodevil@users.noreply.github.com>  Mon, 13 Jul 2026 19:05:00 +0200
+
+tascam-uh7000-linux (0.2.0~beta21) unstable; urgency=medium
+
+  * Keep configuration-1 capture active for unbounded duplex endurance probes.
+
+ -- carlodevil <64757000+carlodevil@users.noreply.github.com>  Mon, 13 Jul 2026 18:45:00 +0200
+
+tascam-uh7000-linux (0.2.0~beta20) unstable; urgency=medium
+
+  * Record verified bounded analog output-to-input loopback evidence.
+
+ -- carlodevil <64757000+carlodevil@users.noreply.github.com>  Mon, 13 Jul 2026 18:35:00 +0200
+
+tascam-uh7000-linux (0.2.0~beta19) unstable; urgency=medium
+
+  * Stop bounded duplex capture with its finite output stream.
+
+ -- carlodevil <64757000+carlodevil@users.noreply.github.com>  Mon, 13 Jul 2026 18:25:00 +0200
+
+tascam-uh7000-linux (0.2.0~beta18) unstable; urgency=medium
+
+  * Record successful silent configuration-1 duplex transport validation.
+
+ -- carlodevil <64757000+carlodevil@users.noreply.github.com>  Mon, 13 Jul 2026 18:10:00 +0200
+
+tascam-uh7000-linux (0.2.0~beta17) unstable; urgency=medium
+
+  * Accept aligned variable-length configuration-1 capture packets in duplex
+    diagnostics.
+
+ -- carlodevil <64757000+carlodevil@users.noreply.github.com>  Mon, 13 Jul 2026 18:00:00 +0200
+
+tascam-uh7000-linux (0.2.0~beta16) unstable; urgency=medium
+
+  * Run the source PipeWire helper directly in panel development tests.
+
+ -- carlodevil <64757000+carlodevil@users.noreply.github.com>  Mon, 13 Jul 2026 17:42:00 +0200
+
+tascam-uh7000-linux (0.2.0~beta15) unstable; urgency=medium
+
+  * Support source-tree panel tests without an installed PipeWire wrapper.
+
+ -- carlodevil <64757000+carlodevil@users.noreply.github.com>  Mon, 13 Jul 2026 17:35:00 +0200
+
+tascam-uh7000-linux (0.2.0~beta14) unstable; urgency=medium
+
+  * Expose the verified PipeWire analog playback route in the control panel.
+
+ -- carlodevil <64757000+carlodevil@users.noreply.github.com>  Mon, 13 Jul 2026 17:25:00 +0200
+
+tascam-uh7000-linux (0.2.0~beta13) unstable; urgency=medium
+
+  * Record successful Debian 13 continuous-integration validation.
+
+ -- carlodevil <64757000+carlodevil@users.noreply.github.com>  Mon, 13 Jul 2026 17:10:00 +0200
+
+tascam-uh7000-linux (0.2.0~beta12) unstable; urgency=medium
+
+  * Declare pkg-config for native libusb stream builds.
+  * Record the tested upgrade path from legacy 0.1.34.
+
+ -- carlodevil <64757000+carlodevil@users.noreply.github.com>  Mon, 13 Jul 2026 17:00:00 +0200
+
+tascam-uh7000-linux (0.2.0~beta11) unstable; urgency=medium
+
+  * Require a rendered offscreen panel frame in continuous integration.
+
+ -- carlodevil <64757000+carlodevil@users.noreply.github.com>  Mon, 13 Jul 2026 16:50:00 +0200
+
+tascam-uh7000-linux (0.2.0~beta10) unstable; urgency=medium
+
+  * Add manual pages for the D-Bus service and Qt control panel.
+
+ -- carlodevil <64757000+carlodevil@users.noreply.github.com>  Mon, 13 Jul 2026 16:40:00 +0200
+
+tascam-uh7000-linux (0.2.0~beta9) unstable; urgency=medium
+
+  * Retry and verify UAC2 selection after USB authorization transitions.
+
+ -- carlodevil <64757000+carlodevil@users.noreply.github.com>  Mon, 13 Jul 2026 16:20:00 +0200
+
+tascam-uh7000-linux (0.2.0~beta8) unstable; urgency=medium
+
+  * Wait for USB reauthorization to settle before selecting UAC2 mode.
+
+ -- carlodevil <64757000+carlodevil@users.noreply.github.com>  Mon, 13 Jul 2026 16:00:00 +0200
+
+tascam-uh7000-linux (0.2.0~beta7) unstable; urgency=medium
+
+  * Schedule hotplug configuration only after USB authorization completes.
+
+ -- carlodevil <64757000+carlodevil@users.noreply.github.com>  Mon, 13 Jul 2026 15:40:00 +0200
+
+tascam-uh7000-linux (0.2.0~beta6) unstable; urgency=medium
+
+  * Reconfigure the device on USB authorization change events.
+
+ -- carlodevil <64757000+carlodevil@users.noreply.github.com>  Mon, 13 Jul 2026 15:20:00 +0200
+
+tascam-uh7000-linux (0.2.0~beta5) unstable; urgency=medium
+
+  * Refuse clock-control writes while analog playback owns configuration 1.
+
+ -- carlodevil <64757000+carlodevil@users.noreply.github.com>  Mon, 13 Jul 2026 15:00:00 +0200
+
+tascam-uh7000-linux (0.2.0~beta4) unstable; urgency=medium
+
+  * Pace configuration-1 playback from the hardware feedback endpoint.
+
+ -- carlodevil <64757000+carlodevil@users.noreply.github.com>  Mon, 13 Jul 2026 14:40:00 +0200
+
+tascam-uh7000-linux (0.2.0~beta3) unstable; urgency=medium
+
+  * Add an opt-in PipeWire-Pulse analog sink manager.
+  * Restore the previous desktop sink and UAC2 configuration on shutdown.
+
+ -- carlodevil <64757000+carlodevil@users.noreply.github.com>  Mon, 13 Jul 2026 14:20:00 +0200
+
+tascam-uh7000-linux (0.2.0~beta2) unstable; urgency=medium
+
+  * Add the bounded configuration-1 analog playback backend.
+  * Package uh7000-stream for explicit stereo S24_3LE 48 kHz playback.
+
+ -- carlodevil <64757000+carlodevil@users.noreply.github.com>  Mon, 13 Jul 2026 14:10:00 +0200
+
+tascam-uh7000-linux (0.2.0~beta1) unstable; urgency=medium
+
+  * Rebuild the project around the confirmed UAC2 configuration 2 path.
+  * Add typed Python state, read-only protocol transport and D-Bus service.
+  * Add a clean-room Qt Quick Interface, Mixer and Effects panel.
+  * Replace unsafe loopback assumptions with fail-closed playback gates.
+  * Move unverified mixer writes out of the installed user workflow.
+  * Convert packaging to debhelper/pybuild for Debian 13.
+
+ -- carlodevil <64757000+carlodevil@users.noreply.github.com>  Sat, 11 Jul 2026 18:00:00 +0200
+
 tascam-uh7000-linux (0.1.34-1) unstable; urgency=medium
 
   * Add an offline model of the Windows UH-7000 ISO OUT encoder functions.

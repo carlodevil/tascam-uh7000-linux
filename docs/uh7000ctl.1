@@ -1,207 +1,75 @@
-.TH UH7000CTL 1 "July 2026" "tascam-uh7000-linux" "User Commands"
+.TH UH7000CTL 1 "July 2026" "tascam-uh7000-linux 0.2" "User Commands"
 .SH NAME
-uh7000ctl \- manage and test the TASCAM UH-7000 Linux support package
+uh7000ctl \- inspect and safely prepare a TASCAM UH-7000 on Linux
 .SH SYNOPSIS
 .B uh7000ctl
-.I COMMAND
-.RI [ ARGS ...]
+.RB [ --json ]
+.I command
+.RI [ options ]
 .SH DESCRIPTION
 .B uh7000ctl
-configures and inspects the TASCAM UH-7000 USB audio interface on Linux.
-The package selects USB configuration 2, registers the device with
-.BR snd_usb_audio ,
-and provides cautious diagnostics for the reverse-engineered vendor control
-plane.
+reports the UH-7000 USB, ALSA, mixer and safety state.  The device is switched
+to USB Audio 2.0 configuration 2 by the installed hot-plug service and uses the
+stock snd_usb_audio driver.
 .PP
-Commands that send USB vendor controls require root. Output tests are gated by
-.B preflight
-so they do not play audio while capture is clipped.
+Playback commands fail closed while software loopback, DSP direct monitoring,
+physical attenuation, capture baseline, or explicit feedback cannot be
+positively verified.
 .SH COMMANDS
 .TP
 .B status
-Show USB configuration, bound kernel drivers, ALSA cards, and UH-7000 USB audio
-stream descriptors.
+Show typed device, topology, mixer, effects and safety state.
 .TP
-.B configure
-Switch the UH-7000 to USB Audio 2.0 configuration 2 and register the USB ID with
-.BR snd_usb_audio .
+.B topology
+Show ALSA channel, format, rate and feedback information.
 .TP
-.B control-status
-Read the verified vendor selector status using request
-.BR 0x49 .
-This is a read-only control-plane check.
+.B diagnostics
+Add verified read-only vendor request 0x49 and page 0x1f00 probes.
 .TP
-.BI "state-dump " [DIR]
-Read the verified request
-.B 0x55
-vendor state pages
-.B 0x1f00
+.B selector-status
+Read the verified one-byte vendor selector status.
+.TP
+.B clock-source-test
+Run the guarded Automatic, Internal, Automatic selector transaction only after
+the operator supplies both
+.B --outputs-disconnected
 and
-.B 0x007c..0x007f
-to
-.IR DIR
-or
-.I /tmp
-by default. The command writes raw 512-byte pages and JSON metadata. It is
-read-only and does not scan unlisted page indices.
+.BR --execute .
+The command verifies every transition and restores Automatic before returning.
 .TP
-.BI "control-plan " NAME
-Print decoded dry-run vendor transfer plans without sending USB controls.
-Known names are
-.BR quiet ,
-.BR noise-mute ,
-.BR adcdac ,
-.BR routes ,
+.BI state-dump " directory"
+Write only verified read-only request-0x55 pages and a JSON manifest.
+.TP
+.BI configure " [kernel-name]"
+Run the root-only helper that selects UAC2 configuration 2 and registers the
+device ID with snd_usb_audio.
+.TP
+.B preflight
+Evaluate playback safety gates.  Confirmation options are
+.BR --speakers-disconnected ,
+.BR --attenuated-loopback ,
 and
-.BR f800 .
+.BR --baseline-peak-dbfs .
 .TP
-.B "control-plan f800"
-Describe the decoded Windows
-.B 0xf800
-mixer/UI image path without generating or uploading a live image. The plan shows
-the Windows upload/download IOCTLs, the six rate-specific
-.B 0x42
-blocks, the current
-.B 0x4d
-block, the footer checksum, and the corresponding request
-.B 0x55
-pages
-.BR 0x007c..0x007f .
-Actual image-byte regeneration remains in the offline research tool
-.BR tools/uh7000_cpl_emulate.py .
+.B playback-plan
+Print the per-channel guarded-ramp plan without playing audio.
 .TP
-.BI "f800-upload " IMAGE
-Experimentally write a 2048-byte decoded
-.B 0xf800
-image to request
-.B 0x55
-pages
-.BR 0x007c..0x007f .
-The command requires root and refuses to run unless
-.B UH7000_EXPERIMENTAL_0X55_WRITE=1
-is present in the environment. It runs
-.B preflight
-before writing, saves the current pages to a backup file under
-.IR /tmp ,
-checks the image checksum, verifies every page by readback, and restores the
-backup if capture clips immediately after upload.
-.TP
-.BI "f800-restore " IMAGE
-Experimentally restore a saved 2048-byte
-.B 0xf800
-page image. This command also requires
-.B UH7000_EXPERIMENTAL_0X55_WRITE=1
-but does not require a clean preflight baseline because it is intended as a
-rollback path after a bad
-.B f800-upload
-experiment.
-.TP
-.BI "preflight " [SEC]
-Check the safe gate before output-routing tests. The command verifies USB
-configuration, driver binding, ALSA stream shape, explicit playback feedback
-mode, vendor control status, and capture clipping.
-.TP
-.BI "loopback-test " [SEC] " " [DBFS]
-Run
-.B preflight
-first, then play a low 1 kHz tone through the 4-channel playback stream and
-measure the return through the 6-channel capture stream. The command fails if
-the return tone is not visible or if capture clips.
-.TP
-.BI "report " [SEC]
-Print a JSON diagnostic report without playback or mixer writes. The report
-includes USB state, ALSA stream text, parsed playback feedback mode, vendor
-selector status, capture health, and a
-.B safe_for_output_test
-boolean.
-.TP
-.B quiet
-Send the verified zeroed vendor mixer recovery blocks for requests
-.B 0x4d
-and
-.BR 0x42 .
-Use this only as a bounded recovery action after routing tests.
-.TP
-.BI "suppress-noise " [SEC]
-Apply a Windows-derived, 64-byte, request
-.B 0x4d
-noise suppression block, then verify capture before and after. This command
-does not play audio and does not send request
-.BR 0x42 .
-It cleared the local constant clipped output condition, but it is a recovery
-gate rather than proof that USB playback routing is fixed.
-.TP
-.BI "recover " [SEC]
-Run a no-playback recovery sequence for a clipped capture path: capture check,
-.B quiet
-mixer recovery, short wait, and a second capture check. The command exits
-nonzero if capture still clips after the quiet recovery.
-.TP
-.BI "wait-clean " [TRIES] " " [SEC] " " [INTERVAL] " " [NTFY_TOPIC]
-Poll
-.B preflight
-without playback or mixer writes until the UH-7000 reaches a clean capture
-baseline. If
-.I NTFY_TOPIC
-is provided and
-.BR curl (1)
-is installed, send one ntfy.sh manual-action notification after the first failed
-attempt.
-.TP
-.BI "input-noise " [SEC]
-Capture from
-.B hw:UH7000,0
-without playback or mixer writes and report per-channel peak, RMS, DC offset,
-clip polarity, zero-crossing rate, strongest spectral bins, and coarse band
-power. This helps characterize analog output noise when outputs are patched back
-to inputs.
-.TP
-.BI "capture-health " [SEC]
-Record a short 48 kHz, 6-channel
-.B S24_3LE
-capture sample and print per-channel peak, RMS, full-scale clip counts, clipped
-channel summary, and recovery recommendation.
+.B playback-test
+Evaluate all safety gates.  Live execution remains unavailable until native
+hardware validation proves DSP direct-monitor readback.
 .SH SAFETY
-Do not run output-routing tests while the front-panel meter is solid red or
-.B preflight
-fails. Disconnect the physical output-to-input loopback and power-cycle the
-UH-7000 before continuing if capture remains clipped.
-.PP
-Output-loopback tests also require the UH-7000 explicit feedback endpoint:
-sync endpoint
-.B 0x85
-with
-.B "Implicit Feedback Mode: No" .
-If preflight reports implicit feedback, reload
-.B snd_usb_audio
-with
-.B implicit_fb=N
-for the test session before trusting output-routing results.
-.PP
-If the analog outputs emit steady noise before any manual control command runs,
-disconnect the output-to-input loopback and verify a clean input baseline first.
-That condition is not evidence that
-.B uh7000ctl
-sent a mixer write during hotplug; the automatic service only selects USB
-configuration 2 and registers the device with
-.BR snd_usb_audio .
+Do not connect outputs to inputs without physical attenuation. Disconnect
+speakers and headphones. Unknown direct-monitor state is treated as enabled.
+The planned ramp starts at -90 dBFS and aborts at -18 dBFS or growth greater
+than 12 dB in a 100 ms guard window.
 .SH FILES
 .TP
 .I /usr/libexec/tascam-uh7000/tascam-uh7000-configure
-Root helper used by udev/systemd hotplug handling.
+Root-only UAC2 configuration helper.
 .TP
-.I /usr/lib/udev/rules.d/90-tascam-uh7000.rules
-Udev rule that starts the configuration service for USB ID
-.BR 0644:8048 .
-.TP
-.I /usr/share/doc/tascam-uh7000-linux/
-Installed README and reverse-engineering notes.
-.SH EXIT STATUS
-Commands return zero on success. Diagnostic and gated test commands return
-nonzero when the UH-7000 is absent, the safe gate fails, capture clips, or a USB
-control transfer fails.
+.I /usr/share/doc/tascam-uh7000-linux/protocol.md
+Verified protocol boundary.
 .SH SEE ALSO
 .BR aplay (1),
 .BR arecord (1),
-.BR curl (1),
-.BR systemd-udevd (8)
+.BR pw-link (1)

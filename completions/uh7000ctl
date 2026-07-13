@@ -3,44 +3,19 @@
 
 _uh7000ctl()
 {
-    local cur prev commands plans
+    local cur commands
     COMPREPLY=()
     cur="${COMP_WORDS[COMP_CWORD]}"
-    prev="${COMP_WORDS[COMP_CWORD-1]}"
-    commands="status configure control-status state-dump control-plan f800-upload f800-restore preflight loopback-test report quiet suppress-noise recover wait-clean input-noise capture-health help"
-    plans="quiet noise-mute suppress-noise adcdac routes f800"
+    commands="status topology state diagnostics selector-status state-dump configure preflight playback-plan playback-test"
 
     if [ "$COMP_CWORD" -eq 1 ]; then
         mapfile -t COMPREPLY < <(compgen -W "$commands" -- "$cur")
         return 0
     fi
 
-    case "$prev" in
-        control-plan)
-            mapfile -t COMPREPLY < <(compgen -W "$plans" -- "$cur")
-            return 0
-            ;;
-    esac
-
     case "${COMP_WORDS[1]}" in
-        preflight|report|suppress-noise|recover|input-noise|capture-health)
-            mapfile -t COMPREPLY < <(compgen -W "1 2 3 5 10" -- "$cur")
-            ;;
-        wait-clean)
-            if [ "$COMP_CWORD" -eq 2 ]; then
-                mapfile -t COMPREPLY < <(compgen -W "1 3 6 12 30" -- "$cur")
-            elif [ "$COMP_CWORD" -eq 3 ]; then
-                mapfile -t COMPREPLY < <(compgen -W "1 2 3 5" -- "$cur")
-            elif [ "$COMP_CWORD" -eq 4 ]; then
-                mapfile -t COMPREPLY < <(compgen -W "5 10 30 60" -- "$cur")
-            fi
-            ;;
-        loopback-test)
-            if [ "$COMP_CWORD" -eq 2 ]; then
-                mapfile -t COMPREPLY < <(compgen -W "1 2 3 5 10" -- "$cur")
-            elif [ "$COMP_CWORD" -eq 3 ]; then
-                mapfile -t COMPREPLY < <(compgen -W "-80 -70 -60 -50 -40" -- "$cur")
-            fi
+        preflight|playback-test)
+            mapfile -t COMPREPLY < <(compgen -W "--speakers-disconnected --attenuated-loopback --baseline-peak-dbfs" -- "$cur")
             ;;
     esac
 }

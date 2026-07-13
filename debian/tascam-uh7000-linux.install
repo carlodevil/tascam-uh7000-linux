@@ -1,0 +1,15 @@
+src/tascam-uh7000-configure usr/libexec/tascam-uh7000
+src/tascam-uh7000-pipewire usr/libexec/tascam-uh7000
+src/uh7000-pipewire usr/bin
+systemd/tascam-uh7000-configure@.service usr/lib/systemd/system
+systemd/user/uh7000d.service usr/lib/systemd/user
+systemd/user/uh7000-stream.service usr/lib/systemd/user
+dbus/io.github.carlodevil.UH7000.Control1.service usr/share/dbus-1/services
+dbus/io.github.carlodevil.UH7000.Control1.xml usr/share/dbus-1/interfaces
+udev/90-tascam-uh7000.rules usr/lib/udev/rules.d
+desktop/io.github.carlodevil.UH7000.desktop usr/share/applications
+metainfo/io.github.carlodevil.tascam_uh7000_linux.metainfo.xml usr/share/metainfo
+completions/uh7000ctl usr/share/bash-completion/completions
+alsa/ucm2/UH7000/UH7000.conf usr/share/alsa/ucm2/UH7000
+alsa/ucm2/UH7000/HiFi.conf usr/share/alsa/ucm2/UH7000
+wireplumber/51-uh7000.conf usr/share/wireplumber/wireplumber.conf.d

@@ -1,4 +1,23 @@
 #!/usr/bin/make -f
 
+export PYBUILD_NAME=tascam-uh7000-linux
+export PYBUILD_SYSTEM=pyproject
+export PYBUILD_TEST_ARGS=-v
+
 %:
-	dh $@
+	dh $@ --with python3 --buildsystem=pybuild
+
+override_dh_auto_clean:
+	dh_auto_clean
+	rm -rf .pytest_cache build dist *.egg-info src/*.egg-info uh7000-stream
+
+override_dh_auto_build:
+	dh_auto_build
+	$(CC) $(CPPFLAGS) $(CFLAGS) -std=c11 -Wall -Wextra -Werror -O2 \
+		tools/uh7000_config1_probe.c -o uh7000-stream \
+		$$(pkg-config --cflags --libs libusb-1.0) -lm
+
+override_dh_auto_install:
+	dh_auto_install
+	install -D -m 0755 uh7000-stream \
+		debian/tascam-uh7000-linux/usr/bin/uh7000-stream

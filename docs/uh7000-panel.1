@@ -1,0 +1,23 @@
+.TH UH7000-PANEL 1 "July 2026" "tascam-uh7000-linux" "User Commands"
+.SH NAME
+uh7000-panel \- graphical status and control panel for the TASCAM UH-7000
+.SH SYNOPSIS
+.B uh7000-panel
+.SH DESCRIPTION
+.B uh7000-panel
+opens the Qt Quick session-bus client for
+.BR uh7000d (1).
+It displays the detected USB configuration, ALSA topology, verified clock
+source, and safety state. Controls without capture, readback, and rollback
+evidence are intentionally unavailable.
+.PP
+The panel requires a graphical session with the Qt Quick runtime installed by
+the Debian package dependencies.
+.SH SAFETY
+Do not use diagnostic playback with speakers or headphones connected. The
+panel does not bypass the command-line playback safety gates, and unknown
+direct-monitor state is treated as unsafe.
+.SH SEE ALSO
+.BR uh7000d (1),
+.BR uh7000ctl (1),
+.BR uh7000-pipewire (1)

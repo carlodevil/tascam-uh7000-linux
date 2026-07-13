@@ -1,0 +1,32 @@
+.TH UH7000D 1 "July 2026" "tascam-uh7000-linux" "User Commands"
+.SH NAME
+uh7000d \- per-user D-Bus control service for the TASCAM UH-7000
+.SH SYNOPSIS
+.B uh7000d
+.SH DESCRIPTION
+.B uh7000d
+owns the session-bus name
+.B io.github.carlodevil.UH7000.Control1
+and exposes typed status, read-only diagnostics, and the verified clock-source
+transaction used by
+.BR uh7000ctl (1)
+and
+.BR uh7000-panel (1).
+.PP
+The service is installed as the enabled per-user systemd unit
+.BR uh7000d.service .
+It starts on login and can also be activated through its D-Bus service file.
+All mixer, effects, and routing controls without verified capture, readback,
+and rollback evidence remain unavailable.
+.SH SERVICE MANAGEMENT
+.nf
+systemctl --user status uh7000d.service
+systemctl --user restart uh7000d.service
+.fi
+.SH SAFETY
+The service rejects clock-source changes while configuration-1 analog playback
+is active. It does not issue experimental vendor writes.
+.SH SEE ALSO
+.BR uh7000ctl (1),
+.BR uh7000-panel (1),
+.BR uh7000-pipewire (1)
