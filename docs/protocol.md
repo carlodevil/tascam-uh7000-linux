@@ -11,8 +11,12 @@ UAC2 topology. The hot-plug helper then registers the ID with the stock
 `snd_usb_audio` driver's `new_id` interface.
 
 The confirmed topology is 4-channel playback, 6-channel capture, `S24_3LE`,
-with explicit feedback endpoint `0x85`. The physical meaning of capture lanes
-5 and 6 remains unverified and is labelled accordingly.
+with explicit feedback endpoint `0x85`. Configuration 2 describes the
+playback USB Streaming terminal as a Digital Audio Interface (`0x0602`), not
+an analog line-output terminal. This proves Linux PCM transport to the digital
+endpoint but does not prove analog Master/Line output; that path depends on
+proprietary mixer routing. The physical meaning of capture lanes 5 and 6
+remains unverified and is labelled accordingly.
 
 ## Production vendor requests
 

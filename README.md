@@ -29,6 +29,12 @@ and verified by readback. Earlier clipped-loopback observations are not treated
 as device failures: the same-device test formed a feedback loop while
 passthrough was active.
 
+The configuration-2 playback terminal is advertised as a USB Digital Audio
+Interface. Linux can stream four PCM channels to that endpoint, but analog
+Master/Line playback remains unverified: it depends on the UH-7000's
+proprietary mixer and routing state, which the Windows driver configures beyond
+standard UAC2 controls.
+
 ## Safety model
 
 `uh7000ctl preflight` refuses playback unless all of these are true:
