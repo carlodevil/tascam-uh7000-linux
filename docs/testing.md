@@ -122,6 +122,14 @@ retries it for up to eight seconds. Reauthorization can emit an available-device
 event before firmware has settled on configuration 1, so a single write cannot
 be treated as a successful hotplug recovery.
 
+Beta17 also exercised the configuration-1 duplex endpoints with two seconds of
+digital silence. The adaptive output sent 2,004 packets (96,165 frames), the
+feedback endpoint returned 2,010 packets (47.987064 frames/ms average), and
+the capture endpoint completed without malformed-packet errors. Capture RMS
+was -84.45 dBFS on channel 1 and -76.55 dBFS on channel 2; the device then
+returned to configuration 2 with `snd_usb_audio` bound. This validates silent
+duplex transport, not physical analog routing.
+
 ## Clock-source control
 
 With all physical outputs still disconnected, the persistent control path is:
