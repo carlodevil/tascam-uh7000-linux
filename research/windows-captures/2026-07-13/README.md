@@ -16,6 +16,8 @@ interface-controls.tar.gz           71804615  82e51354adfcec78c4412cf3f97d381c75
 manifest.json                          75974  158274669f8c290617b6a9f48d38b29ce8c332981decb2e538ea0e789c55be1c
 mixer-controls.tar.gz               88694971  3d6f2f599e325c8c53b34baf1bcfed829e5c9e439ec8265f699b998ea4c500a3
 direct-monitor-readback-artifacts.tar.gz 16978087  9476d5a9f17b4bae2e119678d1fa0bde365a9b8f6a93a148b9eef9e6988bfe92
+windows-completion/windows-completion-mixer.tar.gz 19639006  0b902609a7c27e3d1301a7bce0d9ceac2e7151b83b4869dbf2bbb0087697c31b
+windows-completion/windows-completion-presets-resets.tar.gz 33436343  8e102d4e16460efbc38ed34048717a12a8f5d2d159c38850d4a2a497b0de580b
 ```
 
 `manifest.json` contains the SHA-256, size, and decoded vendor requests for
@@ -47,11 +49,13 @@ python3 tools/build_windows_capture_manifest.py CAPTURE_DIRECTORY manifest.json
 | Effects | `effects-parameters.pcap` | one detent and inverse detent on every visible knob; selected every reverb model; restored Studio, 24 ms, 1.4 s | request `0x42` DSP images |
 | Memory | `presets-save-reset.pcap` | File → Save, confirmation accepted, success acknowledged | request `0x55` four-block read/write sequence plus configuration refresh |
 
-The File menu also exposes Effect Reset, Mixer Reset, ADC Preset, and ADC/DAC
-Preset. Those four actions were observed but deliberately not invoked: they
-replace many live values and the Windows panel has no reversible load command.
-They must remain disabled in production until a full-state snapshot/restore path
-has been proven on Linux.
+Effect Reset, Mixer Reset, ADC Preset, and ADC/DAC Preset were subsequently
+captured in a dedicated, feedback-safe completion pass. See
+`windows-completion/README.md`, its manifest, and the two compressed artifact
+archives. The panel state was restored manually after every destructive action.
+These captures document Windows behavior but do not remove the production gate:
+Linux must still provide atomic state rollback before exposing reset or preset
+writes.
 
 ## Interpretation gates
 
@@ -62,7 +66,9 @@ has been proven on Linux.
   capture.
 - `audio-performance` belongs in PipeWire/ALSA latency configuration, not the
   USB protocol module.
-- Computer 3/4 mute and computer pre/post were not promoted because their
-  captures do not contain a complete isolated pair.
+- Repeated Computer 1/2, 3, and 4 mute captures contain no vendor request and
+  are classified as Windows-host mixing behavior. The isolated Computer
+  POST-to-PRE edge emits `0x4d`; PRE-to-POST emits no vendor request, so the
+  hardware mapping remains research-only.
 - The existing atomic `0x49` clock primitive remains the only write with
   immediate symmetric hardware readback and rollback.
