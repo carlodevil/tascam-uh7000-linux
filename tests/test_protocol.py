@@ -7,6 +7,7 @@ from uh7000.protocol import (
     REQUEST_SELECTOR_STATUS,
     REQUEST_STATE_PAGE,
     StatePage,
+    parse_vendor_status_packets,
     read_selector_status,
     read_state_page,
 )
@@ -32,6 +33,15 @@ class ProtocolTests(unittest.TestCase):
         transport = MemoryTransport({(REQUEST_STATE_PAGE, 0, 0x1F00, 512): data})
         page = read_state_page(transport, 0x1F00)
         self.assertEqual(data, page.payload)
+
+    def test_vendor_status_packets_are_strictly_framed(self) -> None:
+        packets = parse_vendor_status_packets(b"\x0b\xb0\x6b\x00\x0b\xb0\x6c\x01")
+        self.assertEqual(0x6B, packets[0].control)
+        self.assertEqual(1, packets[1].value)
+        with self.assertRaises(ValueError):
+            parse_vendor_status_packets(b"\x0b\xb0\x6b")
+        with self.assertRaises(ValueError):
+            parse_vendor_status_packets(b"\x00\x00\x6b\x00")
 
 
 if __name__ == "__main__":

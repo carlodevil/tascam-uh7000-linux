@@ -1,4 +1,6 @@
 # Unofficial TASCAM UH-7000 Linux integration.
 # Root performs the one-time switch to UAC2 configuration 2.  The active
-# desktop user receives control-endpoint access without world-writable devices.
-ACTION=="add", SUBSYSTEM=="usb", ENV{DEVTYPE}=="usb_device", ATTR{idVendor}=="0644", ATTR{idProduct}=="8048", TAG+="uaccess", TAG+="systemd", ENV{SYSTEMD_WANTS}+="tascam-uh7000-configure@%k.service"
+# desktop user receives control-endpoint access via uaccess.  audio is a
+# non-world-readable fallback for desktop sessions whose ACL is applied only
+# on physical hotplug events.
+ACTION=="add", SUBSYSTEM=="usb", ENV{DEVTYPE}=="usb_device", ATTR{idVendor}=="0644", ATTR{idProduct}=="8048", GROUP="audio", MODE="0660", TAG+="uaccess", TAG+="systemd", ENV{SYSTEMD_WANTS}+="tascam-uh7000-configure@%k.service"

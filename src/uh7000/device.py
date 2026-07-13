@@ -7,7 +7,15 @@ from pathlib import Path
 from typing import Iterable
 
 from .models import DeviceStatus
-from .protocol import PID, REQUEST_TYPE_VENDOR_IN, VID
+from .protocol import (
+    PID,
+    REQUEST_TYPE_VENDOR_IN,
+    VENDOR_STATUS_ENDPOINT,
+    VENDOR_STATUS_INTERFACE,
+    VID,
+    VendorStatusPacket,
+    parse_vendor_status_packets,
+)
 
 SYSFS_USB_ROOT = Path("/sys/bus/usb/devices")
 
@@ -111,6 +119,24 @@ class PyUsbTransport:
             timeout=timeout_ms,
         )
         return bytes(payload)
+
+    def read_vendor_status(self, timeout_ms: int = 250) -> list[VendorStatusPacket]:
+        """Read one notification batch without detaching any kernel driver."""
+        try:
+            import usb.core  # type: ignore[import-not-found]
+            import usb.util  # type: ignore[import-not-found]
+        except ImportError as exc:
+            raise RuntimeError("PyUSB is required for UH-7000 control access") from exc
+        if self._device.is_kernel_driver_active(VENDOR_STATUS_INTERFACE):
+            raise RuntimeError("UH-7000 vendor status interface is claimed by a kernel driver")
+        usb.util.claim_interface(self._device, VENDOR_STATUS_INTERFACE)
+        try:
+            payload = bytes(
+                self._device.read(VENDOR_STATUS_ENDPOINT, 512, timeout=timeout_ms)
+            )
+        finally:
+            usb.util.release_interface(self._device, VENDOR_STATUS_INTERFACE)
+        return parse_vendor_status_packets(payload)
 
 
 def select_configuration_two(path: Path) -> None:

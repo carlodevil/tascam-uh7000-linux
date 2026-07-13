@@ -41,12 +41,20 @@ class Controller:
 
     def diagnostics(self) -> dict[str, Any]:
         result = self.snapshot()
-        result["protocol"] = {"selector_status": None, "firmware_hint": None, "error": None}
+        result["protocol"] = {
+            "selector_status": None,
+            "firmware_hint": None,
+            "vendor_status_packets": [],
+            "error": None,
+        }
         try:
             transport = PyUsbTransport()
             result["protocol"]["selector_status"] = read_selector_status(transport)
             page = read_state_page(transport, 0x1F00)
             result["protocol"]["firmware_hint"] = parse_firmware_hint(page)
+            result["protocol"]["vendor_status_packets"] = [
+                packet.to_dict() for packet in transport.read_vendor_status()
+            ]
         except Exception as exc:  # diagnostics must remain available when USB access is absent
             result["protocol"]["error"] = str(exc)
         return result

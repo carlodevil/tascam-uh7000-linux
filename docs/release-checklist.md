@@ -31,3 +31,8 @@
 - [ ] GitHub Actions succeeds on Debian 13
 - [ ] `v0.2.0-beta.1` release contains `.deb` and `SHA256SUMS`
 - [ ] stable release deferred until two additional UH-7000 systems validate duplex audio
+# Windows-derived control evidence
+
+Before enabling any mixer, routing, clock or effect write, retain an isolated
+Windows capture following `docs/windows-usb-capture.md`. The control must have
+repeatable before/after payloads, Linux readback and rollback evidence.

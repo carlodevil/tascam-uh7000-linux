@@ -17,6 +17,8 @@ REQUEST_SELECTOR_STATUS = 0x49
 REQUEST_STATE_PAGE = 0x55
 STATE_PAGE_SIZE = 512
 VERIFIED_STATE_PAGES = (0x1F00, 0x007C, 0x007D, 0x007E, 0x007F)
+VENDOR_STATUS_INTERFACE = 3
+VENDOR_STATUS_ENDPOINT = 0x83
 
 
 class ControlTransport(Protocol):
@@ -46,6 +48,30 @@ class StatePage:
     @property
     def is_all_zero(self) -> bool:
         return not any(self.payload)
+
+
+@dataclass(frozen=True, slots=True)
+class VendorStatusPacket:
+    """A four-byte notification from the UH-7000 vendor status endpoint."""
+
+    control: int
+    value: int
+
+    def to_dict(self) -> dict[str, int]:
+        return {"control": self.control, "value": self.value}
+
+
+def parse_vendor_status_packets(payload: bytes) -> list[VendorStatusPacket]:
+    """Parse only complete, framed 0b b0 control value notifications."""
+    if len(payload) % 4:
+        raise ValueError("vendor status payload is not aligned to four-byte packets")
+    packets: list[VendorStatusPacket] = []
+    for offset in range(0, len(payload), 4):
+        prefix, marker, control, value = payload[offset : offset + 4]
+        if (prefix, marker) != (0x0B, 0xB0):
+            raise ValueError(f"unexpected vendor status packet at offset {offset}")
+        packets.append(VendorStatusPacket(control=control, value=value))
+    return packets
 
 
 def read_selector_status(transport: ControlTransport) -> int:
